@@ -9,9 +9,9 @@
 ## 目錄
 
 - Tables：28
-- Explicit indexes：42
+- Explicit indexes：43
 - Other objects：0
-- Migrations：43
+- Migrations：44
 
 ## Tables
 
@@ -20,7 +20,7 @@
 | [`bank_accounts`](#bank_accounts) | 各銀行與信用卡連接器同步回來的帳戶主檔；同一個實體帳戶可能同時存在多個來源記錄。 | 17 | 1 | 1 |
 | [`bank_balance_snapshots`](#bank_balance_snapshots) | 帳戶在特定時間點的餘額快照，供資產總值與歷史圖表計算。 | 15 | 1 | 2 |
 | [`bank_transaction_preferences`](#bank_transaction_preferences) | 使用者對銀行交易計算方式的個別偏好。 | 4 | 1 | 1 |
-| [`bank_transactions`](#bank_transactions) | 銀行帳戶、信用卡與其他存款型連接器同步回來的交易明細。 | 17 | 1 | 6 |
+| [`bank_transactions`](#bank_transactions) | 銀行帳戶、信用卡與其他存款型連接器同步回來的交易明細。 | 17 | 3 | 7 |
 | [`classification_categories`](#classification_categories) | 交易與發票使用的分類字典，包含系統預設分類與使用者分類。 | 6 | 0 | 1 |
 | [`classification_overrides`](#classification_overrides) | 使用者對單筆目標資料指定的分類覆寫。 | 6 | 1 | 1 |
 | [`classification_rules`](#classification_rules) | 以文字條件自動判斷交易或其他資料分類的規則。 | 14 | 1 | 2 |
@@ -232,19 +232,22 @@ CREATE TABLE "bank_transaction_preferences" (
 | 13 | `updated_at` | 交易最後更新的時間。 | TEXT | NO | — | — | — |
 | 14 | `effective_date` | 由 posted_date 優先、authorized_at 備援產生的查詢排序日期。 | TEXT | YES | — | — | virtual |
 | 15 | `status` | 交易狀態，目前限制為 pending 或 posted。 | TEXT | NO | 'posted' | — | — |
-| 16 | `transfer_peer_id` | 定存衍生活動所配對之活存交易的系統識別碼，供本金轉帳一對一配對；沒有明確配對時為 NULL。 | TEXT | YES | — | — | — |
-| 17 | `matched_transaction_id` | 授權對應的已入帳交易 ID，一對一；僅隱藏 pending 且已配對的交易，同 ID 入帳可指向自身。 | TEXT | YES | — | — | — |
+| 16 | `transfer_peer_id` | 定存衍生活動所配對之活存交易的系統識別碼，供本金轉帳一對一配對；沒有明確配對時為 NULL。 以 NO ACTION FK 參照 bank_transactions.id，刪除被引用交易前須先移轉引用。 | TEXT | YES | — | — | — |
+| 17 | `matched_transaction_id` | 授權對應的已入帳交易 ID，一對一；僅隱藏 pending 且已配對的交易，同 ID 入帳可指向自身。 以 NO ACTION FK 參照 bank_transactions.id，允許自我引用，不自動清空或級聯刪除。 | TEXT | YES | — | — | — |
 
 #### Foreign keys
 
 | 欄位 | 參照表 | 參照欄位 | ON UPDATE | ON DELETE |
 | --- | --- | --- | --- | --- |
+| `matched_transaction_id` | `bank_transactions` | `id` | NO ACTION | NO ACTION |
+| `transfer_peer_id` | `bank_transactions` | `id` | NO ACTION | NO ACTION |
 | `account_id` | `bank_accounts` | `id` | NO ACTION | NO ACTION |
 
 #### Indexes
 
 | Index | Unique | Partial | 欄位 | 定義 |
 | --- | :---: | :---: | --- | --- |
+| `idx_bank_transactions_transfer_peer` | 否 | 否 | `transfer_peer_id` | `CREATE INDEX idx_bank_transactions_transfer_peer ON bank_transactions (transfer_peer_id)` |
 | `idx_bank_transactions_account_posted_date` | 否 | 否 | `account_id`, `posted_date` | `CREATE INDEX idx_bank_transactions_account_posted_date<br>  ON bank_transactions (account_id, posted_date)` |
 | `idx_bank_transactions_posted_date` | 否 | 否 | `posted_date` | `CREATE INDEX idx_bank_transactions_posted_date<br>  ON bank_transactions (posted_date)` |
 | `idx_bank_transactions_effective_updated` | 否 | 否 | `effective_date`, `updated_at`, `id` | `CREATE INDEX idx_bank_transactions_effective_updated<br>  ON bank_transactions (effective_date DESC, updated_at DESC, id DESC)` |
@@ -270,7 +273,9 @@ CREATE TABLE "bank_transactions" (
   created_at TEXT NOT NULL,
   updated_at TEXT NOT NULL,
   effective_date TEXT AS (COALESCE(posted_date, authorized_at, '')),
-  status TEXT NOT NULL DEFAULT 'posted' CHECK (status IN ('pending', 'posted')), transfer_peer_id TEXT, matched_transaction_id TEXT,
+  status TEXT NOT NULL DEFAULT 'posted' CHECK (status IN ('pending', 'posted')),
+  transfer_peer_id TEXT REFERENCES "bank_transactions" (id),
+  matched_transaction_id TEXT REFERENCES "bank_transactions" (id),
   UNIQUE (connector_id, account_id, source_id)
 )
 ```
@@ -1554,6 +1559,7 @@ Migration 是 schema 演進的 source of truth；若要了解某欄位的變更�
 - [`0043_merge_legacy_invoice_duplicates.sql`](../packages/db/migrations/0043_merge_legacy_invoice_duplicates.sql)
 - [`0044_text_primary_keys_not_null.sql`](../packages/db/migrations/0044_text_primary_keys_not_null.sql)
 - [`0045_preference_foreign_keys.sql`](../packages/db/migrations/0045_preference_foreign_keys.sql)
+- [`0046_transaction_self_foreign_keys.sql`](../packages/db/migrations/0046_transaction_self_foreign_keys.sql)
 
 ## 程式碼導覽
 
