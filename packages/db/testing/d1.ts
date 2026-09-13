@@ -17,6 +17,7 @@ export function readMigrations() {
 /** Isolated, in-memory workerd D1; never loads the project's remote bindings. */
 export async function createTestD1(
   script = 'export default { fetch() { return new Response("ok"); } };',
+  migrations = readMigrations(),
 ) {
   const mf = new Miniflare(
     convertV4MiniflareOptions({
@@ -29,7 +30,7 @@ export async function createTestD1(
   );
   try {
     const binding = await mf.getD1Database("DB");
-    for (const migration of readMigrations()) {
+    for (const migration of migrations) {
       const statements = unstable_splitSqlQuery(migration)
         .map((statement) => statement.trim())
         .filter((statement) => statement.length > 0)

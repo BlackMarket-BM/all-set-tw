@@ -260,6 +260,39 @@ packages/db/migrations/
 
 管理，不得由 `GET` API 在執行期間自動建立，也不得對正式環境使用 `drizzle-kit push`。Schema 比對測試以 migration 重播結果為準；隔離 D1 整合測試使用 Miniflare／workerd binding，不連線正式資料庫。
 
+### 交易與發票偏好的參照完整性
+
+`bank_transaction_preferences.transaction_id` 與
+`invoice_transaction_preferences` 的 `invoice_id`／`transaction_id` 使用 FK，
+刪除策略為 `NO ACTION`。合併資料須在同一 batch 先移轉或明確處理偏好，再刪除舊資料；
+不得以 CASCADE 或自動清空交易 ID 抹除 linked／separate 決策。
+玉山 lifecycle shadow、永豐及華南 legacy 比對共用 `transaction-merge.ts`：
+僅合併雙向唯一對應且發票配對、計算偏好、分類覆寫不衝突的交易。
+在同一 promotion batch 移轉偏好與交易引用後才刪除舊交易，保留決策及時間；
+兩端相同的計算／分類偏好保留新版既有資料。無對應、配對歧義或偏好衝突時，
+保留原交易及設定；華南亦不再直接清除沒有對應的 legacy 資料。
+
+0045 套用前須唯讀查核以下三種孤兒引用（包含 separate 的非 NULL transaction_id）：
+
+```sql
+SELECT 'bank_transaction_preferences.transaction_id' AS reference, COUNT(*) AS orphan_count
+FROM bank_transaction_preferences p
+WHERE NOT EXISTS (SELECT 1 FROM bank_transactions t WHERE t.id = p.transaction_id)
+UNION ALL
+SELECT 'invoice_transaction_preferences.invoice_id', COUNT(*)
+FROM invoice_transaction_preferences p
+WHERE NOT EXISTS (SELECT 1 FROM invoices i WHERE i.id = p.invoice_id)
+UNION ALL
+SELECT 'invoice_transaction_preferences.transaction_id', COUNT(*)
+FROM invoice_transaction_preferences p
+WHERE p.transaction_id IS NOT NULL
+  AND NOT EXISTS (SELECT 1 FROM bank_transactions t WHERE t.id = p.transaction_id);
+```
+
+有孤兒引用時先檢視來源與使用者決策，不自動刪除或補造父資料。
+0045 以完整複製保留偏好及時間；有違規時 migration transaction 失敗回滾。
+遠端套用前另確認 0044 的 NULL PK 前置條件、備份及隔離升級驗證。
+
 ## HTTP Request 流程
 
 所有 API 掛載在 `/api`：

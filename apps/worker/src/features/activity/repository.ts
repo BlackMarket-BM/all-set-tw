@@ -5,7 +5,18 @@ import {
   invoiceTransactionPreferences,
   invoices,
 } from "@taiwan-fin-hub/db";
-import { and, asc, desc, eq, sql } from "drizzle-orm";
+import {
+  and,
+  asc,
+  desc,
+  eq,
+  isNotNull,
+  isNull,
+  ne,
+  notExists,
+  or,
+  sql,
+} from "drizzle-orm";
 import { alias } from "drizzle-orm/sqlite-core";
 
 const bankTx = alias(bankTransactions, "bank_tx");
@@ -34,7 +45,8 @@ export type MappingTransactionRow = {
 };
 
 export async function listInvoiceTransactionPreferences(db: D1Database) {
-  return createDrizzle(db)
+  const drizzle = createDrizzle(db);
+  return drizzle
     .select({
       invoiceId: invoiceTransactionPreferences.invoiceId,
       transactionId: invoiceTransactionPreferences.transactionId,
@@ -46,10 +58,18 @@ export async function listInvoiceTransactionPreferences(db: D1Database) {
     })
     .from(invoiceTransactionPreferences)
     .where(
-      sql`${invoiceTransactionPreferences.transactionId} IS NULL OR NOT EXISTS (
-        SELECT 1 FROM bank_transactions txn
-        WHERE txn.id = ${invoiceTransactionPreferences.transactionId} AND txn.status = 'pending' AND txn.matched_transaction_id IS NOT NULL
-      )`,
+      notExists(
+        drizzle
+          .select({ id: bankTx.id })
+          .from(bankTx)
+          .where(
+            and(
+              eq(bankTx.id, invoiceTransactionPreferences.transactionId),
+              eq(bankTx.status, "pending"),
+              isNotNull(bankTx.matchedTransactionId),
+            ),
+          ),
+      ),
     )
     .orderBy(
       desc(invoiceTransactionPreferences.updatedAt),
@@ -90,7 +110,7 @@ export async function findMappingTransaction(
       .where(
         and(
           eq(bankTx.id, transactionId),
-          sql`(${bankTx.status} <> 'pending' OR ${bankTx.matchedTransactionId} IS NULL)`,
+          or(ne(bankTx.status, "pending"), isNull(bankTx.matchedTransactionId)),
         ),
       )
       .get()) ?? null

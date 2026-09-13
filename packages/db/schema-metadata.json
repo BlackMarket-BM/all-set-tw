@@ -46,7 +46,7 @@
     },
     "bank_transaction_preferences": {
       "description": "使用者對銀行交易計算方式的個別偏好。",
-      "notes": "目前主要用來記錄交易是否排除於資產或支出計算之外；沒有偏好的交易不會建立記錄。",
+      "notes": "目前主要用來記錄交易是否排除於資產或支出計算之外；沒有偏好的交易不會建立記錄。 transaction_id 以 FK 參照 bank_transactions；NO ACTION 禁止刪除仍有偏好引用的交易，合併時須先移轉偏好。",
       "columns": {
         "transaction_id": "套用偏好的 bank_transactions 記錄識別碼。",
         "excluded_from_calculation": "是否將此交易排除於計算，0 表示納入、1 表示排除。",
@@ -281,7 +281,7 @@
     },
     "invoice_transaction_preferences": {
       "description": "使用者對電子發票與銀行交易是否關聯的決策。",
-      "notes": "decision=linked 時 transaction_id 必須存在；decision=separate 表示刻意維持兩筆獨立資料。",
+      "notes": "invoice_id 與非 NULL 的 transaction_id 分別以 FK 參照 invoices、bank_transactions，採 NO ACTION 保留使用者決策；linked 必須指定交易，separate 可為 NULL。0045 不清除孤兒偏好，套用前須先查核並處理。",
       "columns": {
         "invoice_id": "套用決策的 invoices 記錄識別碼。",
         "transaction_id": "被關聯的 bank_transactions 識別碼；separate 時為 NULL。",

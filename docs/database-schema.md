@@ -9,9 +9,9 @@
 ## 目錄
 
 - Tables：28
-- Explicit indexes：41
+- Explicit indexes：42
 - Other objects：0
-- Migrations：42
+- Migrations：43
 
 ## Tables
 
@@ -19,7 +19,7 @@
 | --- | --- | ---: | ---: | ---: |
 | [`bank_accounts`](#bank_accounts) | 各銀行與信用卡連接器同步回來的帳戶主檔；同一個實體帳戶可能同時存在多個來源記錄。 | 17 | 1 | 1 |
 | [`bank_balance_snapshots`](#bank_balance_snapshots) | 帳戶在特定時間點的餘額快照，供資產總值與歷史圖表計算。 | 15 | 1 | 2 |
-| [`bank_transaction_preferences`](#bank_transaction_preferences) | 使用者對銀行交易計算方式的個別偏好。 | 4 | 0 | 1 |
+| [`bank_transaction_preferences`](#bank_transaction_preferences) | 使用者對銀行交易計算方式的個別偏好。 | 4 | 1 | 1 |
 | [`bank_transactions`](#bank_transactions) | 銀行帳戶、信用卡與其他存款型連接器同步回來的交易明細。 | 17 | 1 | 6 |
 | [`classification_categories`](#classification_categories) | 交易與發票使用的分類字典，包含系統預設分類與使用者分類。 | 6 | 0 | 1 |
 | [`classification_overrides`](#classification_overrides) | 使用者對單筆目標資料指定的分類覆寫。 | 6 | 1 | 1 |
@@ -32,7 +32,7 @@
 | [`investment_positions`](#investment_positions) | 投資帳戶在特定日期的持倉與資產市值快照。 | 14 | 0 | 4 |
 | [`investment_transactions`](#investment_transactions) | 投資帳戶的買賣、配息或其他證券交易明細。 | 22 | 0 | 3 |
 | [`invoice_line_items`](#invoice_line_items) | 電子發票底下的商品或服務明細。 | 13 | 1 | 2 |
-| [`invoice_transaction_preferences`](#invoice_transaction_preferences) | 使用者對電子發票與銀行交易是否關聯的決策。 | 5 | 0 | 1 |
+| [`invoice_transaction_preferences`](#invoice_transaction_preferences) | 使用者對電子發票與銀行交易是否關聯的決策。 | 5 | 2 | 2 |
 | [`invoices`](#invoices) | 電子發票的抬頭與總額主檔。 | 10 | 0 | 2 |
 | [`manual_assets`](#manual_assets) | 使用者手動登錄、無法由銀行或投資連接器同步的資產。 | 6 | 0 | 0 |
 | [`net_worth_history`](#net_worth_history) | 按日期保存的淨資產或資產類別歷史數值，用於圖表與歷史查詢。 | 6 | 0 | 2 |
@@ -174,7 +174,7 @@ CREATE TABLE "bank_balance_snapshots" (
 ### `bank_transaction_preferences`
 
 > 用途：使用者對銀行交易計算方式的個別偏好。
-> 注意：目前主要用來記錄交易是否排除於資產或支出計算之外；沒有偏好的交易不會建立記錄。
+> 注意：目前主要用來記錄交易是否排除於資產或支出計算之外；沒有偏好的交易不會建立記錄。 transaction_id 以 FK 參照 bank_transactions；NO ACTION 禁止刪除仍有偏好引用的交易，合併時須先移轉偏好。
 
 #### Columns
 
@@ -187,7 +187,9 @@ CREATE TABLE "bank_balance_snapshots" (
 
 #### Foreign keys
 
-—
+| 欄位 | 參照表 | 參照欄位 | ON UPDATE | ON DELETE |
+| --- | --- | --- | --- | --- |
+| `transaction_id` | `bank_transactions` | `id` | NO ACTION | NO ACTION |
 
 #### Indexes
 
@@ -199,7 +201,7 @@ CREATE TABLE "bank_balance_snapshots" (
 
 ```sql
 CREATE TABLE "bank_transaction_preferences" (
-  transaction_id TEXT NOT NULL PRIMARY KEY,
+  transaction_id TEXT NOT NULL PRIMARY KEY REFERENCES bank_transactions (id),
   excluded_from_calculation INTEGER NOT NULL DEFAULT 0 CHECK (excluded_from_calculation IN (0, 1)),
   created_at TEXT NOT NULL,
   updated_at TEXT NOT NULL
@@ -874,7 +876,7 @@ CREATE TABLE "invoice_line_items" (
 ### `invoice_transaction_preferences`
 
 > 用途：使用者對電子發票與銀行交易是否關聯的決策。
-> 注意：decision=linked 時 transaction_id 必須存在；decision=separate 表示刻意維持兩筆獨立資料。
+> 注意：invoice_id 與非 NULL 的 transaction_id 分別以 FK 參照 invoices、bank_transactions，採 NO ACTION 保留使用者決策；linked 必須指定交易，separate 可為 NULL。0045 不清除孤兒偏好，套用前須先查核並處理。
 
 #### Columns
 
@@ -888,20 +890,24 @@ CREATE TABLE "invoice_line_items" (
 
 #### Foreign keys
 
-—
+| 欄位 | 參照表 | 參照欄位 | ON UPDATE | ON DELETE |
+| --- | --- | --- | --- | --- |
+| `transaction_id` | `bank_transactions` | `id` | NO ACTION | NO ACTION |
+| `invoice_id` | `invoices` | `id` | NO ACTION | NO ACTION |
 
 #### Indexes
 
 | Index | Unique | Partial | 欄位 | 定義 |
 | --- | :---: | :---: | --- | --- |
+| `idx_invoice_transaction_preferences_transaction` | 否 | 否 | `transaction_id` | `CREATE INDEX idx_invoice_transaction_preferences_transaction<br>  ON invoice_transaction_preferences (transaction_id)` |
 | `idx_invoice_transaction_preferences_linked_transaction` | 是 | 是 | `transaction_id` | `CREATE UNIQUE INDEX idx_invoice_transaction_preferences_linked_transaction<br>  ON invoice_transaction_preferences (transaction_id)<br>  WHERE decision = 'linked'` |
 
 #### DDL
 
 ```sql
 CREATE TABLE "invoice_transaction_preferences" (
-  invoice_id TEXT NOT NULL PRIMARY KEY,
-  transaction_id TEXT,
+  invoice_id TEXT NOT NULL PRIMARY KEY REFERENCES invoices (id),
+  transaction_id TEXT REFERENCES bank_transactions (id),
   decision TEXT NOT NULL CHECK (decision IN ('linked', 'separate')),
   created_at TEXT NOT NULL,
   updated_at TEXT NOT NULL,
@@ -1547,6 +1553,7 @@ Migration 是 schema 演進的 source of truth；若要了解某欄位的變更�
 - [`0042_bank_transaction_lifecycle.sql`](../packages/db/migrations/0042_bank_transaction_lifecycle.sql)
 - [`0043_merge_legacy_invoice_duplicates.sql`](../packages/db/migrations/0043_merge_legacy_invoice_duplicates.sql)
 - [`0044_text_primary_keys_not_null.sql`](../packages/db/migrations/0044_text_primary_keys_not_null.sql)
+- [`0045_preference_foreign_keys.sql`](../packages/db/migrations/0045_preference_foreign_keys.sql)
 
 ## 程式碼導覽
 
