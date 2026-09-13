@@ -1,4 +1,5 @@
 import { sql } from "drizzle-orm";
+import { bankTransactions } from "./bank";
 import {
   sqliteTable,
   text,
@@ -83,6 +84,17 @@ export const invoiceTransactionPreferences = sqliteTable(
   },
   (table) => [
     primaryKey({ columns: [table.invoiceId] }),
+    foreignKey({
+      columns: [table.invoiceId],
+      foreignColumns: [invoices.id],
+    }),
+    foreignKey({
+      columns: [table.transactionId],
+      foreignColumns: [bankTransactions.id],
+    }),
+    index("idx_invoice_transaction_preferences_transaction").on(
+      table.transactionId,
+    ),
     uniqueIndex("idx_invoice_transaction_preferences_linked_transaction")
       .on(table.transactionId)
       .where(sql`decision = 'linked'`),

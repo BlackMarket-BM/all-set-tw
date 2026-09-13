@@ -173,6 +173,10 @@ export const bankTransactionPreferences = sqliteTable(
   },
   (table) => [
     primaryKey({ columns: [table.transactionId] }),
+    foreignKey({
+      columns: [table.transactionId],
+      foreignColumns: [bankTransactions.id],
+    }),
     index("idx_bank_transaction_preferences_excluded").on(
       table.excludedFromCalculation,
     ),
