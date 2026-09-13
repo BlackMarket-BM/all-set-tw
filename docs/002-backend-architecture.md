@@ -250,7 +250,7 @@ Drizzle 型別只留在 DB 與 Worker repository 層。`packages/core`、前端�
 
 Feature-specific 查詢應放在 feature 的 `repository.ts`，而不是持續擴大 `packages/db/src/index.ts`。一般 repository 以 Drizzle 為預設寫法；sync job、run／item、排程、通知批次及報告的一般讀取，以及同步 lease 與獨立 run 狀態更新已使用 Drizzle。selection 維持既有 row shape、排序與 LEFT JOIN null；staging promotion 與 durable item 寫入的 statement composition 保留整組原生 D1 batch。
 
-分類 repository 已轉換為 Drizzle；規則重排維持單一 batch，保留 NOCASE 分類唯一性、系統規則保護與 override conflict target。invoices、investments 與 bank 的一般列表／明細查詢已轉換為 Drizzle，保留游標分頁、LEFT JOIN null、pending／posted 可見性與 TEXT 日期邊界；銀行交易日條件維持可使用 `idx_bank_transactions_transaction_day`。dashboard、net-worth、activity 與 bank calculation／search 聚合已轉換為 Drizzle，保留計算值、跨來源去重、TEXT 日期與 activity search CTE；同步 lease／run 狀態更新以 Drizzle 保留單次條件 UPDATE 與 affected rows 判斷；staging promotion 保留原生 batch 的順序、計數 offset、finalize／cursor／cleanup 原子邊界。保留 SQL 的範圍與測試見 `docs/006-drizzle-adoption-plan.md` 階段 4。
+分類 repository 已轉換為 Drizzle；規則重排維持單一 batch，保留 NOCASE 分類唯一性、系統規則保護與 override conflict target。invoices、investments 與 bank 的一般列表／明細查詢已轉換為 Drizzle，保留游標分頁、LEFT JOIN null、pending／posted 可見性與 TEXT 日期邊界；銀行交易日條件維持可使用 `idx_bank_transactions_transaction_day`。dashboard、net-worth、activity 與 bank calculation／search 聚合已轉換為 Drizzle，保留計算值、跨來源去重、TEXT 日期與 activity search CTE；同步 lease／run 狀態更新以 Drizzle 保留單次條件 UPDATE 與 affected rows 判斷；staging promotion 保留原生 batch 的順序、計數 offset、finalize／cursor／cleanup 原子邊界。保留 SQL 的範圍與測試見下方維護約定。
 
 資料庫 schema 與預設資料必須透過：
 
@@ -259,6 +259,31 @@ packages/db/migrations/
 ```
 
 管理，不得由 `GET` API 在執行期間自動建立，也不得對正式環境使用 `drizzle-kit push`。Schema 比對測試以 migration 重播結果為準；隔離 D1 整合測試使用 Miniflare／workerd binding，不連線正式資料庫。
+
+### Drizzle 與原生 SQL 維護約定
+
+一般 CRUD、篩選與 JOIN 優先使用 Drizzle；不為統一語法重寫已有測試的穩定 SQL。
+複雜 CTE、window function、set-based upsert 或跨檔案組合的 D1 batch，
+以可讀性與保留原子性為準，保留原生 SQL 並註明理由。
+
+| 保留範圍                                            | 原因與主要驗證                                                                                                                                                                                                                |
+| --------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| staging JSON upsert、promotion 與 lifecycle 合併    | 保留批次參數數量、ENTITY_ORDER、count offset、cursor／finalize／cleanup 的同一 batch。`persistence.test.ts`、identity migration tests、`preference-fk-reconciliation.test.ts`、`drizzle-runtime.test.ts` 驗證資料保留及回滾。 |
+| einvoice／TDCC durable item 寫入與 create-or-get    | 保留 item claim、JSON merge、計數、設定版本 CAS 及 partial unique conflict 處理。run repository 與 sync service tests 驗證重送與結案。                                                                                        |
+| schedule／notification batch／report 寫入及財務 CTE | 保留固定成員快照、notification claim、報告修復及跨資產最新值／缺幣計算。notification batch、report repository 與 scheduler tests 驗證。                                                                                       |
+
+Lease acquisition／renewal 維持單次條件 UPDATE 與 affected rows 判斷，
+不得拆成 SELECT 後 UPDATE；不得用循序 await 或 Promise.all 取代原子 batch。
+查詢調整須保留 expression index 的可用性，以既有 EXPLAIN QUERY PLAN 測試確認。
+
+SQL migrations 是 schema 權威，由 Wrangler 管理套用與 migration ledger；
+不導入 Drizzle Kit 生成／套用 migration 流程。現有 Kit devDependency 僅供
+`packages/db/tests/schema.test.ts` 的隔離 schema 比對，不使用 push 同步資料庫。
+比對須涵蓋 FK、CHECK、generated column、nullable、default、unique 與索引語意。
+
+Drizzle repository 整合測試使用 `packages/db/testing/d1.ts` 的 Miniflare／workerd D1，
+驗證回傳 shape、NULL、排序及 batch 回滾；既有 SQLite adapter 僅用於其能正確模擬的測試。
+直接 import Drizzle 的 workspace 應自行宣告相依，不依賴 npm hoisting。
 
 ### 交易與發票偏好的參照完整性
 
@@ -292,6 +317,34 @@ WHERE p.transaction_id IS NOT NULL
 有孤兒引用時先檢視來源與使用者決策，不自動刪除或補造父資料。
 0045 以完整複製保留偏好及時間；有違規時 migration transaction 失敗回滾。
 遠端套用前另確認 0044 的 NULL PK 前置條件、備份及隔離升級驗證。
+
+### 交易自關聯
+
+0046 為 `bank_transactions.transfer_peer_id` 與 `matched_transaction_id` 新增
+指向同表 `id` 的 `NO ACTION` FK，並新增 transfer peer 索引；matched transaction
+原有 partial unique index 保留。允許 NULL 與自我引用，不使用 CASCADE／SET NULL，
+避免刪除父交易時改變 pending 可見性或定存計算排除。
+
+Migration 在同一 transaction 暫存並重建兩張引用交易的 preferences 表，
+保留所有交易、偏好、時間、generated column 及原有索引。孤兒引用會使升級回滾，
+不自動補造父交易或清空配對。套用前備份並唯讀查核：
+
+```sql
+SELECT 'transfer_peer_id' AS reference, COUNT(*) AS orphan_count
+FROM bank_transactions t
+WHERE t.transfer_peer_id IS NOT NULL
+  AND NOT EXISTS (SELECT 1 FROM bank_transactions p WHERE p.id = t.transfer_peer_id)
+UNION ALL
+SELECT 'matched_transaction_id', COUNT(*)
+FROM bank_transactions t
+WHERE t.matched_transaction_id IS NOT NULL
+  AND NOT EXISTS (SELECT 1 FROM bank_transactions p WHERE p.id = t.matched_transaction_id);
+```
+
+一般 transaction promotion 以同一 statement 寫入交易及 transfer peer；永豐在
+promotion 後更新授權配對，中信刪除副本前處理 matched reference，共用合併流程先移轉
+兩種引用。未來若將相依交易拆成不同 statements，須先寫入被引用交易，
+或在同一 batch 明確延後 FK 檢查並驗證回滾；同一 batch 本身不保證可任意排列。
 
 ## HTTP Request 流程
 

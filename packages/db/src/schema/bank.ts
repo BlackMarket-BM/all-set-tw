@@ -124,6 +124,12 @@ export const bankTransactions = sqliteTable(
   },
   (table) => [
     primaryKey({ columns: [table.id] }),
+    foreignKey({ columns: [table.transferPeerId], foreignColumns: [table.id] }),
+    foreignKey({
+      columns: [table.matchedTransactionId],
+      foreignColumns: [table.id],
+    }),
+    index("idx_bank_transactions_transfer_peer").on(table.transferPeerId),
     uniqueIndex("idx_bank_transactions_matched_transaction")
       .on(table.matchedTransactionId)
       .where(sql`matched_transaction_id IS NOT NULL`),
