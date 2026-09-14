@@ -42,6 +42,7 @@ type SinopacApiPayloads = {
   hasValidCard?: boolean;
   latest?: unknown;
   outstanding?: unknown;
+  accountingInfo?: unknown;
   unbilled?: unknown;
 };
 type Scraped = {
@@ -238,9 +239,16 @@ class SinopacAppClient {
       { IsExcludePaidUp: false, ID: customerId, DateYYYYMMDD: "" },
       customerId,
     );
+    const accountingInfo = await this.postSinoCard(
+      "/m/SinoCard/api/accounting/accountinginfo",
+      "帳務資訊",
+      { ID: customerId },
+      customerId,
+    );
     return {
       summary,
       bills: [initialBills, ...olderBills],
+      accountingInfo,
       latest,
       outstanding,
     };
@@ -839,7 +847,13 @@ export function parseSinopacCardData(
     };
   }
   const summary = parseSummary(payloads.summary);
+  const accounting = parseSinoCardAccounting(payloads.accountingInfo);
   const bills = parseBills(payloads.bills, now);
+  for (const bill of accounting) {
+    const index = bills.findIndex((item) => item.sourceId === bill.sourceId);
+    if (index >= 0) bills[index] = bill;
+    else bills.push(bill);
+  }
   const sinoCard =
     payloads.outstanding != null || payloads.latest != null
       ? parseSinoCardTransactions(payloads.latest, payloads.outstanding)
@@ -852,6 +866,7 @@ export function parseSinopacCardData(
       right.billingPeriod.localeCompare(left.billingPeriod),
     )[0];
   if (
+    !accounting.some((bill) => bill.currency === "TWD") &&
     latestTwdBill &&
     latestTwdBill.statementAmount != null &&
     summary.recentPaymentAmount != null &&
@@ -949,6 +964,73 @@ export function parseSinopacCardData(
     });
   }
 
+  for (const bill of accounting) {
+    // Missing payment information cannot establish the remaining liability.
+    if (bill.paidAmount == null) continue;
+    const accountId = accountIdForCurrency(bill.currency);
+    const previousIndex = bankBalanceSnapshots.findIndex(
+      (item) => item.accountId === accountId,
+    );
+    const remaining = Math.max(0, bill.statementAmount - bill.paidAmount);
+    const snapshot = {
+      ...(previousIndex >= 0 ? bankBalanceSnapshots[previousIndex] : {}),
+      accountId,
+      sourceId: `${accountId}:${now.toISOString().slice(0, 10)}`,
+      balance: remaining === 0 ? 0 : -remaining,
+      statementBalance: bill.statementAmount,
+      paymentDueDate: bill.paymentDueDate,
+      statementClosingDate: bill.statementClosingDate,
+      noPaymentNeeded: remaining === 0,
+      currency: bill.currency,
+      asOfAt: now.toISOString(),
+      raw: {
+        provider: "sinopac.accountinginfo",
+        statementAmount: bill.statementAmount,
+        paidAmount: bill.paidAmount,
+      },
+    };
+    if (previousIndex >= 0) bankBalanceSnapshots[previousIndex] = snapshot;
+    else bankBalanceSnapshots.push(snapshot);
+  }
+
+  // An unbilled currency has no current statement or due date. Use only the
+  // bank's current subtotal, never the locally retained transaction history.
+  if (
+    payloads.accountingInfo !== undefined &&
+    isRecord(payloads.outstanding) &&
+    isRecord(payloads.outstanding.Result)
+  ) {
+    const subtotals = payloads.outstanding.Result.SubTotal;
+    if (!Array.isArray(subtotals))
+      throw new Error("永豐未出帳小計格式不完整。");
+    for (const row of subtotals) {
+      if (!isRecord(row)) throw new Error("永豐未出帳小計格式不完整。");
+      const currency = normalizeCurrency(stringValue(row.CurrencyCode));
+      if (
+        currency === "TWD" ||
+        accounting.some((bill) => bill.currency === currency)
+      )
+        continue;
+      const amount = parseAmount(stringValue(row.SubTotalAmt));
+      if (amount == null) throw new Error("永豐未出帳小計金額格式不完整。");
+      const accountId = accountIdForCurrency(currency);
+      if (!bankAccounts.some((account) => account.sourceId === accountId))
+        continue;
+      bankBalanceSnapshots.push({
+        accountId,
+        sourceId: `${accountId}:${now.toISOString().slice(0, 10)}`,
+        balance: amount <= 0 ? 0 : -amount,
+        currency,
+        asOfAt: now.toISOString(),
+        raw: {
+          provider: "sinopac.outstanding-subtotal",
+          currency,
+          unbilledAmount: amount,
+        },
+      });
+    }
+  }
+
   return {
     cardAuthorizations: sinoCard?.authorizations.map((transaction) => ({
       ...transaction,
@@ -1009,6 +1091,61 @@ function parseSummary(payload: unknown) {
     noPaymentNeeded: /無需繳(?:費|款)|本期無應繳|免繳/.test(text),
     cardLast4: cardValue?.match(/(\d{4})\D*$/)?.[1],
   };
+}
+
+function parseSinoCardAccounting(payload: unknown) {
+  if (payload === undefined) return [];
+  if (
+    !isRecord(payload) ||
+    !isRecord(payload.Result) ||
+    !isRecord(payload.Result.BaseData) ||
+    !Array.isArray(payload.Result.BillAmounts)
+  ) {
+    throw new Error("永豐帳務資訊格式不完整。");
+  }
+  const closingDate = parseDate(stringValue(payload.Result.BaseData.STMTDATE));
+  const dueDate = parseDate(stringValue(payload.Result.BaseData.DUEDATE));
+  return payload.Result.BillAmounts.map((row: unknown) => {
+    if (!isRecord(row)) throw new Error("永豐帳務資訊金額格式不完整。");
+    const currencyValue =
+      stringValue(row.CurrencyCode) || stringValue(row.CurrencyName);
+    if (
+      !/^(000|840|978|392|TWD|NTD|USD|JPY|EUR|臺幣|台幣|新臺幣|美元|日圓|日幣|歐元)$/.test(
+        currencyValue,
+      )
+    ) {
+      throw new Error("永豐帳務資訊幣別無法識別。");
+    }
+    const currency =
+      currencyValue === "歐元" ? "EUR" : normalizeCurrency(currencyValue);
+    const statementAmount = parseAmount(stringValue(row.CURRBAL));
+    const paidAmount = parseAmount(stringValue(row.TotalPaymentAmt));
+    if (
+      !closingDate ||
+      statementAmount == null ||
+      statementAmount < 0 ||
+      (paidAmount != null && paidAmount < 0)
+    ) {
+      throw new Error("永豐帳務資訊日期或金額格式不完整。");
+    }
+    return {
+      sourceId: `sinopac:card:statement:${closingDate.slice(0, 7)}:${currency}`,
+      billingPeriod: closingDate.slice(0, 7),
+      statementAmount,
+      minimumPayment: parseAmount(stringValue(row.DUEAMT)),
+      paidAmount,
+      isPaid: paidAmount == null ? undefined : paidAmount >= statementAmount,
+      paymentDueDate: dueDate,
+      statementClosingDate: closingDate,
+      currency,
+      raw: {
+        provider: "sinopac.accountinginfo",
+        currency,
+        statementAmount,
+        paidAmount,
+      },
+    };
+  });
 }
 
 function parseBills(payload: unknown, now: Date) {

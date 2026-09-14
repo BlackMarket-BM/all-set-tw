@@ -170,7 +170,9 @@
           <p
             class="mt-2 text-xl font-bold tracking-tight tabular-nums text-coral"
           >
-            {formatCurrency(-summary.cardDebt)}
+            {summary.hasUnknownCardBalance
+              ? "資料不完整"
+              : formatCurrency(-summary.cardDebt)}
           </p>
           <p class="mt-1 text-xs text-ink/45">
             {summary.cards.length} 張卡片
@@ -243,7 +245,9 @@
                       class={`mt-1 block text-xs tabular-nums ${group.cards.length ? "text-coral" : "text-ink/40"}`}
                     >
                       {group.cards.length
-                        ? `負債 ${formatCurrency(-group.debtTotalTwd)}`
+                        ? group.hasUnknownCardBalance
+                          ? "負債資料不完整"
+                          : `負債 ${formatCurrency(-group.debtTotalTwd)}`
                         : "無信用卡"}
                     </small>
                   </span>
@@ -373,7 +377,9 @@
                     class={`mt-1 block text-xs tabular-nums ${group.cards.length ? "text-coral" : "text-ink/40"}`}
                   >
                     {group.cards.length
-                      ? `負債 ${formatCurrency(-group.debtTotalTwd)}`
+                      ? group.hasUnknownCardBalance
+                        ? "負債資料不完整"
+                        : `負債 ${formatCurrency(-group.debtTotalTwd)}`
                       : "無信用卡"}
                   </small>
                 </span>

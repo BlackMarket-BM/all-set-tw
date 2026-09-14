@@ -10,7 +10,7 @@ export interface BankAccountRow {
   currency: string;
   bankCode?: string;
   accountLast4?: string;
-  balance?: number;
+  balance?: number | null;
   availableBalance?: number;
   paymentDueDate?: string;
   statementClosingDate?: string;
