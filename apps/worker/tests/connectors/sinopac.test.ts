@@ -240,6 +240,8 @@ const sessionCookies = JSON.stringify([
 ]);
 
 function payloadForUrl(url: string) {
+  if (url.endsWith("/accounting/accountinginfo"))
+    return { ResultCode: "00", Result: { BaseData: {}, BillAmounts: [] } };
   if (url.includes("ws_cardsum")) return summaryPayload;
   if (url.includes("ws_cardbilling_sp")) return billPayload;
   if (url.endsWith("/security/sso")) return sinoCardSsoPayload;
@@ -251,6 +253,110 @@ function payloadForUrl(url: string) {
 }
 
 describe("sinopac App JSON parser", () => {
+  it.each([
+    ["0", -10000, false],
+    ["3000", -7000, false],
+    ["10000", 0, true],
+    ["12000", 0, true],
+    ["-", undefined, undefined],
+  ])(
+    "uses per-currency statement and payment amounts (%s)",
+    (paid, balance, isPaid) => {
+      const result = parseSinopacCardData(
+        {
+          summary: summaryPayload,
+          bills: billPayload,
+          accountingInfo: {
+            Result: {
+              BaseData: { STMTDATE: "20260723", DUEDATE: "20260807" },
+              BillAmounts: [
+                {
+                  CurrencyName: "日圓",
+                  CURRBAL: "10,000",
+                  DUEAMT: "2,000",
+                  TotalPaymentAmt: paid,
+                },
+              ],
+            },
+          },
+        },
+        new Date("2026-07-25T00:00:00Z"),
+      );
+      expect(result.bankAccounts.some((item) => item.currency === "JPY")).toBe(
+        true,
+      );
+      expect(
+        result.creditCardBills.find((item) => item.currency === "JPY"),
+      ).toMatchObject({
+        statementAmount: 10000,
+        minimumPayment: 2000,
+        isPaid,
+        paymentDueDate: "2026-08-07",
+        statementClosingDate: "2026-07-23",
+      });
+      const snapshot = result.bankBalanceSnapshots.find(
+        (item) => item.currency === "JPY",
+      );
+      if (balance === undefined) expect(snapshot).toBeUndefined();
+      else expect(snapshot).toMatchObject({ balance, statementBalance: 10000 });
+    },
+  );
+
+  it("rejects malformed accounting data instead of reporting an empty balance", () => {
+    expect(() =>
+      parseSinopacCardData({
+        summary: summaryPayload,
+        bills: billPayload,
+        accountingInfo: { Result: {} },
+      }),
+    ).toThrow("帳務資訊格式不完整");
+  });
+
+  it("keeps unbilled JPY liability when the current statement contains only TWD", () => {
+    const result = parseSinopacCardData({
+      summary: summaryPayload,
+      bills: billPayload,
+      accountingInfo: {
+        Result: {
+          BaseData: { STMTDATE: "2026/08/23", DUEDATE: "2026/09/07" },
+          BillAmounts: [
+            { CurrencyCode: "000", CURRBAL: "820", TotalPaymentAmt: "820" },
+          ],
+        },
+      },
+      latest: { Result: { Items: [] } },
+      outstanding: {
+        Result: {
+          Detail: [
+            {
+              CurrencyCode: "392",
+              TXDATE: "2026/09/01",
+              DEDATE: "2026/09/02",
+              AMT: "100",
+              MEMO: "測試消費",
+            },
+          ],
+          SubTotal: [
+            { CurrencyCode: "392", SubTotalAmt: "39,712.00", Count: 26 },
+          ],
+        },
+      },
+    });
+    const snapshot = result.bankBalanceSnapshots.find(
+      (row) => row.currency === "JPY",
+    );
+    expect(snapshot).toMatchObject({ balance: -39712 });
+    expect(snapshot?.statementBalance).toBeUndefined();
+    expect(snapshot?.paymentDueDate).toBeUndefined();
+    expect(result.creditCardBills.some((row) => row.currency === "JPY")).toBe(
+      false,
+    );
+    expect(
+      result.bankBalanceSnapshots.find((row) => row.currency === "TWD")
+        ?.balance,
+    ).toBe(0);
+  });
+
   it("parses Taiwan amounts and ROC dates", () => {
     expect(parseAmount("NT$ 1,234.50")).toBe(1234.5);
     expect(parseAmount("(2,000)")).toBe(-2000);
@@ -507,7 +613,7 @@ describe("sinopac App JSON parser", () => {
       protocol: "sinopac-mobile-app-json-v1",
     });
 
-    expect(fetchMock).toHaveBeenCalledTimes(6);
+    expect(fetchMock).toHaveBeenCalledTimes(7);
     expect(fetchMock.mock.calls.map(([input]) => String(input))).toEqual([
       "https://m.sinopac.com/ws/card/cardqry/ws_cardsum.ashx",
       "https://m.sinopac.com/ws/card/cardqry/ws_cardbilling_sp.ashx?TxDate=default&TxType=01",
@@ -515,6 +621,7 @@ describe("sinopac App JSON parser", () => {
       "https://m.sinopac.com/m/SinoCard/api/security/auth",
       "https://m.sinopac.com/m/SinoCard/api/Accounting/LatestTx",
       "https://m.sinopac.com/m/SinoCard/api/Accounting/OutstandingDetail",
+      "https://m.sinopac.com/m/SinoCard/api/accounting/accountinginfo",
     ]);
     expect(
       JSON.parse(String(fetchMock.mock.calls[4]?.[1]?.body)),
@@ -556,7 +663,7 @@ describe("sinopac App JSON parser", () => {
       protocol: "sinopac-mobile-app-json-v1",
     });
 
-    expect(fetchMock).toHaveBeenCalledTimes(6);
+    expect(fetchMock).toHaveBeenCalledTimes(7);
     expect(result.bankBalanceSnapshots).toHaveLength(1);
     expect(result.creditCardBills).toHaveLength(1);
     expect(result.bankTransactions).toHaveLength(2);
@@ -639,7 +746,7 @@ describe("sinopac App JSON parser", () => {
       protocol: "sinopac-mobile-app-json-v1",
     });
 
-    expect(requestCookies).toHaveLength(6);
+    expect(requestCookies).toHaveLength(7);
     expect(
       requestCookies
         .slice(0, 3)
@@ -680,6 +787,7 @@ describe("sinopac App JSON parser", () => {
       "https://m.sinopac.com/m/SinoCard/api/security/auth",
       "https://m.sinopac.com/m/SinoCard/api/Accounting/LatestTx",
       "https://m.sinopac.com/m/SinoCard/api/Accounting/OutstandingDetail",
+      "https://m.sinopac.com/m/SinoCard/api/accounting/accountinginfo",
     ]);
   });
 

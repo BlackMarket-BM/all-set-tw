@@ -63,7 +63,11 @@
       <div class="rounded-lg border border-border bg-paper p-3">
         <p class="text-xs text-muted-foreground">信用卡負債</p>
         <p class="mt-1 text-lg font-bold tabular-nums text-coral">
-          {group.cards.length ? formatCurrency(-group.debtTotalTwd) : "—"}
+          {group.hasUnknownCardBalance
+            ? "資料不完整"
+            : group.cards.length
+              ? formatCurrency(-group.debtTotalTwd)
+              : "—"}
         </p>
       </div>
     </div>
@@ -135,11 +139,15 @@
               <p class="mt-1 text-xs text-muted-foreground">
                 {card.paymentDueDate
                   ? `繳款期限 ${formatDate(card.paymentDueDate)}`
-                  : "繳款期限待同步"}
+                  : card.balance == null
+                    ? "繳款期限待同步"
+                    : "繳款期限尚未提供"}
               </p>
             </div>
             <p class="text-right text-sm font-bold tabular-nums text-coral">
-              {formatCurrency(-Math.abs(card.balance ?? 0), card.currency)}
+              {card.balance == null
+                ? "金額尚未取得"
+                : formatCurrency(-Math.abs(card.balance), card.currency)}
             </p>
           </div>
         {/each}
