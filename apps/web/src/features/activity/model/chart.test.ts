@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  activityAmountTwd,
   activityCashAmountTwd,
   activityCashFlow,
   activityDisplayAmount,
@@ -23,6 +24,21 @@ function item(overrides: Partial<ActivityItem>): ActivityItem {
 }
 
 describe("activity category chart", () => {
+  it("converts zero foreign amounts without requiring an exchange rate", () => {
+    expect(activityAmountTwd(item({ amount: 0, currency: "HKD" }), {})).toBe(0);
+    expect(activityAmountTwd(item({ amount: -0, currency: "HKD" }), {})).toBe(
+      0,
+    );
+  });
+
+  it("keeps nonzero foreign amounts unavailable without an exchange rate", () => {
+    for (const amount of [100, -100]) {
+      expect(
+        activityAmountTwd(item({ amount, currency: "HKD" }), {}),
+      ).toBeUndefined();
+    }
+  });
+
   it("converts cash flow to TWD and keeps invoices as expenses", () => {
     expect(
       activityCashAmountTwd(item({ amount: 10, currency: "USD" }), { USD: 32 }),

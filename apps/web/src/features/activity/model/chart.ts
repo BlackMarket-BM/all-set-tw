@@ -35,6 +35,7 @@ export function activityAmountTwd(
 ): number | undefined {
   const amount = activityDisplayAmount(item);
   if (amount == null) return undefined;
+  if (amount === 0) return 0;
   if (item.currency === "TWD") return amount;
   const rate = rates[item.currency];
   return rate != null && Number.isFinite(rate) && rate > 0
