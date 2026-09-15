@@ -15,6 +15,7 @@ import {
 import type { SyncResult } from "@taiwan-fin-hub/core";
 
 const ORIGIN = "https://ibank.firstbank.com.tw";
+const FRAME_URL = `${ORIGIN}/NetBank/frame.html`;
 const LOGIN_URL = `${ORIGIN}/NetBank/index103.html`;
 const ACCOUNT_OVERVIEW_URL = `${ORIGIN}/NetBank/1/acntReviewAll.html`;
 const HOME_URL = `${ORIGIN}/NetBank/1/01.jsp`;
@@ -171,6 +172,23 @@ export class FirstbankCaptchaRejectedError extends FirstbankVerificationRequired
   }
 }
 
+export const FIRSTBANK_SESSION_OCCUPIED_MESSAGE =
+  "第一銀行目前已登入、無法再操作。請稍候或先從原裝置登出後再同步。";
+
+export class FirstbankSessionOccupiedError extends FirstbankVerificationRequiredError {
+  constructor(message = FIRSTBANK_SESSION_OCCUPIED_MESSAGE) {
+    super(message);
+    this.name = "FirstbankSessionOccupiedError";
+  }
+}
+
+class FirstbankAlreadyAuthenticatedError extends Error {
+  constructor() {
+    super("第一銀行目前已登入。");
+    this.name = "FirstbankAlreadyAuthenticatedError";
+  }
+}
+
 export class FirstbankConnectionError extends Error {
   constructor(
     message: string,
@@ -268,25 +286,32 @@ export function createFirstbankConnector(
 
         let loggedIn = false;
         if (pendingSessionId && config.captcha) {
-          const outcome = await submitLoginAndWait(page, config.captcha);
-          if (outcome === "credential") {
-            throw new FirstbankCredentialRejectedError(
-              "第一銀行身分證字號、使用者代號或密碼錯誤。",
-            );
+          if (await resumeAuthenticatedSession(page)) {
+            loggedIn = true;
+          } else {
+            const outcome = await submitLoginAndWait(page, config.captcha);
+            if (outcome === "credential") {
+              throw new FirstbankCredentialRejectedError(
+                "第一銀行身分證字號、使用者代號或密碼錯誤。",
+              );
+            }
+            if (outcome === "captcha") {
+              throw new FirstbankCaptchaRejectedError();
+            }
+            if (outcome === "occupied") {
+              throw new FirstbankSessionOccupiedError();
+            }
+            if (outcome !== "success") {
+              throw new FirstbankVerificationRequiredError(
+                "第一銀行登入結果無法確認，請重新取得圖形驗證碼。",
+              );
+            }
+            loggedIn = true;
           }
-          if (outcome === "captcha") {
-            throw new FirstbankCaptchaRejectedError();
-          }
-          if (outcome !== "success") {
-            throw new FirstbankVerificationRequiredError(
-              "第一銀行登入結果無法確認，請重新取得圖形驗證碼。",
-            );
-          }
-          loggedIn = true;
         } else if (config.sessionCookies) {
           await importCookies(page, config.sessionCookies);
           await gotoAllowingTimeout(page, LOGIN_URL);
-          loggedIn = await hasAuthenticatedSession(page);
+          loggedIn = await resumeAuthenticatedSession(page);
         }
 
         if (!loggedIn) {
@@ -410,6 +435,7 @@ async function loginWithOcr(
     attempt += 1
   ) {
     try {
+      if (await resumeAuthenticatedSession(page)) return;
       const captcha = await openLoginAndCaptureCaptcha(page, config);
       const answer = await recognizeCaptcha(
         toArrayBuffer(captcha.bytes),
@@ -425,6 +451,9 @@ async function loginWithOcr(
           "第一銀行身分證字號、使用者代號或密碼錯誤。",
         );
       }
+      if (outcome === "occupied") {
+        throw new FirstbankSessionOccupiedError();
+      }
       if (outcome === "captcha") {
         lastError = new FirstbankCaptchaRejectedError();
       } else {
@@ -433,7 +462,9 @@ async function loginWithOcr(
         );
       }
     } catch (error) {
+      if (error instanceof FirstbankAlreadyAuthenticatedError) return;
       if (error instanceof FirstbankCredentialRejectedError) throw error;
+      if (error instanceof FirstbankSessionOccupiedError) throw error;
       lastError = error;
     }
   }
@@ -450,6 +481,9 @@ async function openLoginAndCaptureCaptcha(
 ): Promise<CaptchaImage> {
   await gotoAllowingTimeout(page, LOGIN_URL);
   await switchLoginPageToTraditionalChinese(page);
+  if (await resumeAuthenticatedSession(page)) {
+    throw new FirstbankAlreadyAuthenticatedError();
+  }
   await openLoginAndFill(page, config);
 
   try {
@@ -622,7 +656,7 @@ async function clickLoginMap(page: Page) {
 async function waitForLoginResult(
   page: Page,
   dialog: { readonly message: string },
-): Promise<"success" | "credential" | "captcha" | "unknown"> {
+): Promise<"success" | "credential" | "captcha" | "occupied" | "unknown"> {
   const immediate = classifyLoginMessage(dialog.message);
   if (immediate === "credential" || immediate === "captcha") return immediate;
 
@@ -631,26 +665,28 @@ async function waitForLoginResult(
   let retriedDuplicateLogin = false;
 
   while (Date.now() < deadline) {
-    await confirmVisibleLoginPrompts(page);
-    const dismissed = await dismissPostLoginNotice(page);
-    if (await hasAuthenticatedSession(page)) return "success";
     const pageText = await readLoginPageText(page);
     const combined = `${dialog.message}\n${pageText}`;
     if (isMultiSessionLogin(combined)) {
-      await confirmVisibleLoginPrompts(page);
-      if (!extendedForInterstitial) {
-        extendedForInterstitial = true;
-        deadline = Math.max(deadline, Date.now() + FRAME_TIMEOUT_MS);
-      }
-      await delay(LOGIN_RESULT_POLL_MS);
-      continue;
+      logFirstbankStage("login-occupied", { detail: "MULTI_SESSION_LOGIN" });
+      return "occupied";
     }
-    if (isDuplicateLoginText(combined) && !retriedDuplicateLogin) {
-      retriedDuplicateLogin = true;
+    if (await hasAuthenticatedSession(page)) return "success";
+    await confirmVisibleLoginPrompts(page);
+    const dismissed = await dismissPostLoginNotice(page);
+    if (await hasAuthenticatedSession(page)) return "success";
+    if (isBlockingExistingSession(combined)) {
+      logFirstbankStage("login-occupied");
       await confirmVisibleLoginPrompts(page);
-      await clickLoginMap(page);
-      deadline = Math.max(deadline, Date.now() + FRAME_TIMEOUT_MS);
-      continue;
+      if (await hasAuthenticatedSession(page)) return "success";
+      if (!retriedDuplicateLogin) {
+        retriedDuplicateLogin = true;
+        await clickLoginMap(page);
+        deadline = Math.max(deadline, Date.now() + FRAME_TIMEOUT_MS);
+        await delay(LOGIN_RESULT_POLL_MS);
+        continue;
+      }
+      return "occupied";
     }
     const classified = classifyLoginMessage(combined);
     if (classified === "credential" || classified === "captcha") {
@@ -669,8 +705,19 @@ async function waitForLoginResult(
     }
     await delay(LOGIN_RESULT_POLL_MS);
   }
+  const finalText = `${dialog.message}\n${await readLoginPageText(page)}`;
+  if (isMultiSessionLogin(finalText)) return "occupied";
   if (await hasAuthenticatedSession(page)) return "success";
+  if (isBlockingExistingSession(finalText)) return "occupied";
   return "unknown";
+}
+
+async function resumeAuthenticatedSession(page: Page) {
+  if (isMultiSessionLogin(await readLoginPageText(page))) {
+    logFirstbankStage("login-occupied", { detail: "MULTI_SESSION_LOGIN" });
+    throw new FirstbankSessionOccupiedError();
+  }
+  return hasAuthenticatedSession(page);
 }
 
 function isDuplicateLoginText(text: string) {
@@ -680,12 +727,25 @@ function isDuplicateLoginText(text: string) {
   );
 }
 
+function isOccupiedSessionText(text: string) {
+  return /已登入.*無法操作|無法操作.*已登入|已登入導致無法|未正常登出|未完成.{0,6}登出|請勿重[複覆]登入|目前已有登入|使用者已登入|帳號已在.{0,12}登入|無法重[複覆]登入/.test(
+    text,
+  );
+}
+
+function isBlockingExistingSession(text: string) {
+  return (
+    isOccupiedSessionText(text) ||
+    (isDuplicateLoginText(text) && !isMultiSessionLogin(text))
+  );
+}
+
 function isMultiSessionLogin(text: string) {
-  return /MULTI_SESSION_LOGIN|您已成功登入個人網路銀行/.test(text);
+  return /MULTI_SESSION_LOGIN/.test(text);
 }
 
 function isPostLoginInterstitial(page: Page, pageText: string) {
-  if (/下次再說/.test(pageText) || isMultiSessionLogin(pageText)) return true;
+  if (/下次再說/.test(pageText)) return true;
   try {
     return /\/NetBank\/login\.html(?:[?#]|$)/i.test(page.url());
   } catch {
@@ -705,6 +765,8 @@ async function confirmVisibleLoginPrompts(page: Page) {
     try {
       await withActionTimeout(
         target.evaluate(() => {
+          if (/MULTI_SESSION_LOGIN/.test(document.body?.innerText ?? ""))
+            return;
           const isVisible = (
             element: Element | null,
           ): element is HTMLElement => {
@@ -737,7 +799,7 @@ async function confirmVisibleLoginPrompts(page: Page) {
             ).replace(/\s+/g, "");
             return (
               isVisible(element) &&
-              /^(確定|確認|繼續登入|強制登入|關閉前次|Confirm|Got it)$/i.test(
+              /^(確定|確認|繼續登入|強制登入|關閉前次|登出前次|是|Confirm|Got it)$/i.test(
                 text,
               )
             );
@@ -1146,12 +1208,11 @@ async function collectFirstbankPayloads(
 }
 
 const CARD_QUERIES = [
-  { dataFunc: "F1632", func: 1, key: "cardBill" },
-  { dataFunc: "F1633", func: 2, key: "recentPayments" },
-  { dataFunc: "F1634", func: 3, key: "cardUnbilled" },
+  { dataFunc: "F1632", key: "cardBill" },
+  { dataFunc: "F1633", key: "recentPayments" },
+  { dataFunc: "F1634", key: "cardUnbilled" },
 ] as const satisfies ReadonlyArray<{
   dataFunc: string;
-  func: number;
   key: CardPayloadKey;
 }>;
 
@@ -1166,7 +1227,6 @@ async function collectCardPayloads(
       page,
       frame,
       query.dataFunc,
-      query.func,
       query.key,
       captured,
     );
@@ -1177,38 +1237,33 @@ async function collectCardPayload(
   page: Page,
   preferred: Frame,
   dataFunc: string,
-  func: number,
   key: CardPayloadKey,
   captured: CapturedCardResponses,
 ) {
   if (Object.prototype.hasOwnProperty.call(captured, key)) return preferred;
   const startedAt = Date.now();
-  const frame = await waitForCardHomeFunctions(page, preferred);
+  let frame = await waitForCardHomeFunctions(page, preferred);
   logFirstbankStage("card-query-start", {
     path: framePathname(frame),
     detail: key,
   });
-  const opened = await openCardFunction(frame, dataFunc);
-  if (!opened) {
+  let opened = await openCardFunction(frame, dataFunc);
+  if (opened === "retry") {
+    logFirstbankStage("card-entry-retry", {
+      path: framePathname(frame),
+      detail: dataFunc,
+    });
+    await delay(FRAME_READ_RETRY_MS);
+    frame = await waitForCardHomeFunctions(page, frame);
+    opened = await openCardFunction(frame, dataFunc);
+  }
+  if (opened !== "opened") {
     throw new FirstbankConnectionError("第一銀行信用卡功能入口讀取失敗。");
   }
   logFirstbankStage("card-click", {
     path: framePathname(frame),
     detail: key,
   });
-  if (!Object.prototype.hasOwnProperty.call(captured, key)) {
-    await delay(FRAME_READ_RETRY_MS * 4);
-    if (await isServiceOverview(frame)) {
-      logFirstbankStage("card-bridge-fallback", {
-        path: `/NetBank/ajax/frameFirstCard.html?func=${func}`,
-        detail: key,
-      });
-      await navigateFrame(
-        frame,
-        `${ORIGIN}/NetBank/ajax/frameFirstCard.html?func=${func}`,
-      );
-    }
-  }
   try {
     await waitForCardResponse(captured, key);
   } catch (error) {
@@ -1228,46 +1283,74 @@ async function collectCardPayload(
   return pickCardNavigationFrame(page, frame) ?? frame;
 }
 
-async function openCardFunction(frame: Frame, dataFunc: string) {
-  let prepared = false;
+async function openCardFunction(
+  frame: Frame,
+  dataFunc: string,
+): Promise<"opened" | "retry" | "failed"> {
   try {
-    prepared = Boolean(
-      await withActionTimeout(
-        frame.evaluate((cardDataFunc) => {
-          const link = document.querySelector<HTMLAnchorElement>(
-            `a[data-func="${cardDataFunc}"]`,
-          );
-          if (!link) return false;
-          const collapse = link.closest("li.collapse");
-          const heading = collapse?.querySelector<HTMLElement>(":scope > h3");
-          const panel = collapse?.querySelector<HTMLElement>(":scope > .panel");
-          heading?.click();
-          if (panel) panel.style.display = "block";
-          return true;
-        }, dataFunc),
-      ),
+    const opened = await withActionTimeout(
+      frame.evaluate((cardDataFunc) => {
+        const link = document.querySelector<HTMLAnchorElement>(
+          `a[data-func="${cardDataFunc}"]`,
+        );
+        if (!link) return false;
+        // Dispatch the bank-owned link handler directly. The service overview
+        // may keep the accordion hidden; its layout is not a query prerequisite.
+        link.click();
+        return true;
+      }, dataFunc),
     );
-  } catch {
-    return false;
-  }
-  if (!prepared) return false;
-  try {
-    await withActionTimeout(frame.click(`a[data-func="${dataFunc}"]`));
-    return true;
+    if (opened === true) return "opened";
+    logFirstbankStage("card-entry-unavailable", {
+      path: framePathname(frame),
+      detail: `${dataFunc}:missing-link`,
+    });
+    return "retry";
   } catch (error) {
-    if (
-      error instanceof FirstbankActionTimeoutError ||
-      isRecoverableFrameError(error)
-    ) {
-      // A native click may navigate or replace the card frame before the
-      // Runtime call settles. The response listener remains attached.
-      return true;
+    if (isRecoverableFrameError(error)) {
+      // The handler may already have dispatched its query and replaced this
+      // context. Wait for that response instead of clicking a second time.
+      logFirstbankStage("card-entry-click-navigation", {
+        path: framePathname(frame),
+        detail: dataFunc,
+      });
+      return "opened";
     }
-    return false;
+    logFirstbankStage("card-entry-click-failed", {
+      path: framePathname(frame),
+      detail: `${dataFunc}:${safeDiagnosticText(errorMessage(error))}`,
+    });
+    return "failed";
   }
 }
 
+async function ensureCardFrameset(page: Page) {
+  const hasMenuRuntime = () =>
+    typeof (window as Window & { getMenuObjById?: unknown }).getMenuObjById ===
+    "function";
+  const ready = await withActionTimeout(page.evaluate(hasMenuRuntime)).catch(
+    () => false,
+  );
+  if (ready === true) return;
+  logFirstbankStage("card-frameset-restore", { path: "/NetBank/frame.html" });
+  // Restore the authenticated shell, not the login form. Card handlers rely
+  // on its top-level menu/SSO state and must execute in a child frame.
+  await gotoAllowingTimeout(page, FRAME_URL);
+  try {
+    await withActionTimeout(
+      page.waitForFunction(hasMenuRuntime, { timeout: FRAME_TIMEOUT_MS }),
+      FRAME_TIMEOUT_MS,
+    );
+  } catch {
+    throw new FirstbankConnectionError(
+      "第一銀行網銀導覽環境未載入完成，無法開啟信用卡功能。",
+    );
+  }
+  logFirstbankStage("card-frameset-ready", { path: "/NetBank/frame.html" });
+}
+
 async function navigateToCardHome(page: Page, preferred: Frame) {
+  await ensureCardFrameset(page);
   const homePath = urlPathname(HOME_URL);
   const target = await waitForCardNavigationFrame(page, preferred);
   logFirstbankStage("card-navigation-frame", {
@@ -1346,14 +1429,6 @@ async function findCardFunctions(frame: Frame) {
       : [];
   } catch {
     return [];
-  }
-}
-
-async function isServiceOverview(frame: Frame) {
-  try {
-    return /\/NetBank\/1\/01\.jsp(?:[?#]|$)/i.test(frame.url());
-  } catch {
-    return false;
   }
 }
 

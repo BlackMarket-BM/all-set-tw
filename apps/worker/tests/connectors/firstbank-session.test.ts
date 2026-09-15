@@ -11,9 +11,11 @@ vi.mock("@cloudflare/puppeteer", () => ({ default: puppeteerMock }));
 
 import {
   createFirstbankConnector,
+  FIRSTBANK_SESSION_OCCUPIED_MESSAGE,
   FirstbankCaptchaRejectedError,
   FirstbankConnectionError,
   FirstbankCredentialRejectedError,
+  FirstbankSessionOccupiedError,
   FirstbankVerificationRequiredError,
   prepareFirstbankCaptcha,
 } from "../../src/connectors/firstbank";
@@ -186,6 +188,7 @@ function makeFrame(options?: { authenticated?: boolean }) {
       currentUrl = url;
     }),
     click: vi.fn().mockResolvedValue(undefined),
+    waitForSelector: vi.fn().mockResolvedValue(undefined),
     waitForNavigation: vi.fn().mockResolvedValue(undefined),
     evaluate: vi.fn().mockImplementation(async (fn: unknown, arg?: unknown) => {
       const source = String(fn);
@@ -297,6 +300,7 @@ function makePage(options?: {
     createCDPSession: vi.fn().mockResolvedValue(cdpSession),
     evaluate: vi.fn().mockImplementation(async (fn: unknown) => {
       const source = String(fn);
+      if (source.includes("getMenuObjById")) return true;
       if (source.includes("image.naturalWidth")) return { x: 140, y: 360 };
       if (source.includes("#btnOpen, #tFunc")) return authenticated;
       if (source.includes("innerText")) return "";
@@ -726,8 +730,9 @@ function installCardFlow(
         }
         if (
           source.includes("cardDataFunc") &&
-          source.includes("link.closest")
+          source.includes("link.click()")
         ) {
+          await frame.click(`a[data-func="${arg}"]`);
           return true;
         }
         return previousEvaluate(fn, arg);
@@ -880,6 +885,65 @@ describe("第一銀行 browser session lifecycle", () => {
     );
     expect(browser.close).toHaveBeenCalledOnce();
     expect(browser.disconnect).not.toHaveBeenCalled();
+  });
+
+  it.each([false, true])(
+    "MULTI_SESSION_LOGIN 停止登入且不點確認，既有回覆頁=%s",
+    async (alreadyLoggedIn) => {
+      const page = makePage();
+      let occupied = alreadyLoggedIn;
+      const previousEvaluate = page.evaluate;
+      page.evaluate = vi.fn().mockImplementation(async (fn: unknown) => {
+        if (String(fn).includes("innerText") && occupied)
+          return "您已成功登入個人網路銀行 MULTI_SESSION_LOGIN";
+        return previousEvaluate(fn);
+      });
+      page.mouse.click.mockImplementation(async () => {
+        occupied = true;
+      });
+      const click = vi.fn();
+      Object.assign(page, { click });
+      const browser = makeBrowser(page);
+      puppeteerMock.launch.mockResolvedValue(browser);
+      const recognize = vi.fn().mockResolvedValue("XVSH");
+      await expect(
+        createFirstbankConnector({} as Fetcher, recognize).sync(credentials),
+      ).rejects.toThrow(FIRSTBANK_SESSION_OCCUPIED_MESSAGE);
+      expect(recognize).toHaveBeenCalledTimes(alreadyLoggedIn ? 0 : 1);
+      expect(page.mouse.click).toHaveBeenCalledTimes(alreadyLoggedIn ? 0 : 1);
+      expect(click).not.toHaveBeenCalled();
+      expect(
+        page.evaluate.mock.calls.some(([fn]) =>
+          String(fn).includes("const confirmLogin"),
+        ),
+      ).toBe(false);
+      expect(browser.close).toHaveBeenCalledOnce();
+    },
+  );
+
+  it("人工驗證 session 有舊登入標記但顯示 MULTI_SESSION_LOGIN 時仍停止", async () => {
+    const page = makePage({ authenticated: true });
+    const previousEvaluate = page.evaluate;
+    page.evaluate = vi.fn().mockImplementation(async (fn: unknown) => {
+      if (String(fn).includes("innerText")) return "MULTI_SESSION_LOGIN";
+      return previousEvaluate(fn);
+    });
+    const browser = makeBrowser(page);
+    puppeteerMock.sessions.mockResolvedValue([
+      { sessionId: "firstbank-session", startTime: Date.now() },
+    ]);
+    puppeteerMock.connect.mockResolvedValue(browser);
+    await expect(
+      createFirstbankConnector({} as Fetcher).sync({
+        ...credentials,
+        browserSessionId: "firstbank-session",
+        browserSessionExpiresAt: new Date(Date.now() + 60_000).toISOString(),
+        captcha: "XVSH",
+      }),
+    ).rejects.toThrow(FIRSTBANK_SESSION_OCCUPIED_MESSAGE);
+    expect(page.mouse.click).not.toHaveBeenCalled();
+    expect(page.type).not.toHaveBeenCalled();
+    expect(browser.close).toHaveBeenCalledOnce();
   });
 
   it("restores valid cookies without invoking OCR", async () => {
@@ -1045,6 +1109,28 @@ describe("第一銀行 browser session lifecycle", () => {
     expect(browser.close).toHaveBeenCalledOnce();
   });
 
+  it("stops automatic OCR when First Bank reports an existing login", async () => {
+    const page = makePage();
+    page.mouse.click.mockResolvedValue(undefined);
+    page.evaluate.mockImplementation(async (fn: unknown) => {
+      const source = String(fn);
+      if (source.includes("image.naturalWidth")) return { x: 140, y: 360 };
+      if (source.includes("innerText")) return "已登入導致無法操作";
+      return undefined;
+    });
+    const browser = makeBrowser(page);
+    puppeteerMock.launch.mockResolvedValue(browser);
+    const recognize = vi.fn().mockResolvedValue("XVSH");
+    const sync = createFirstbankConnector({} as Fetcher, recognize).sync(
+      credentials,
+    );
+
+    await expect(sync).rejects.toBeInstanceOf(FirstbankSessionOccupiedError);
+    await expect(sync).rejects.toThrow(FIRSTBANK_SESSION_OCCUPIED_MESSAGE);
+    expect(recognize).toHaveBeenCalledOnce();
+    expect(browser.close).toHaveBeenCalledOnce();
+  });
+
   it("classifies an invalid manually submitted CAPTCHA and still closes the browser", async () => {
     const page = makePage();
     page.mouse.click.mockResolvedValue(undefined);
@@ -1069,6 +1155,33 @@ describe("第一銀行 browser session lifecycle", () => {
       }),
     ).rejects.toBeInstanceOf(FirstbankCaptchaRejectedError);
     expect(page.mouse.click).toHaveBeenCalledWith(140, 360);
+    expect(browser.close).toHaveBeenCalledOnce();
+  });
+
+  it("classifies an occupied First Bank session without asking for another CAPTCHA", async () => {
+    const page = makePage();
+    page.mouse.click.mockResolvedValue(undefined);
+    page.evaluate.mockImplementation(async (fn: unknown) => {
+      const source = String(fn);
+      if (source.includes("image.naturalWidth")) return { x: 140, y: 360 };
+      if (source.includes("innerText")) return "已登入導致無法操作";
+      return undefined;
+    });
+    const browser = makeBrowser(page);
+    puppeteerMock.sessions.mockResolvedValue([
+      { sessionId: "firstbank-session", startTime: Date.now() },
+    ]);
+    puppeteerMock.connect.mockResolvedValue(browser);
+
+    await expect(
+      createFirstbankConnector({} as Fetcher).sync({
+        ...credentials,
+        browserSessionId: "firstbank-session",
+        browserSessionExpiresAt: new Date(Date.now() + 60_000).toISOString(),
+        captcha: "XVSH",
+      }),
+    ).rejects.toThrow(FIRSTBANK_SESSION_OCCUPIED_MESSAGE);
+    expect(page.mouse.click).toHaveBeenCalled();
     expect(browser.close).toHaveBeenCalledOnce();
   });
 
@@ -1144,6 +1257,127 @@ describe("第一銀行信用卡 Browser Run 擷取", () => {
       logSpy.mockRestore();
     }
   });
+
+  it.each([false, true])(
+    "頂層導覽遺失時先恢復 frameset，恢復失敗=%s",
+    async (restoreFails) => {
+      vi.useFakeTimers();
+      const page = makePage({ authenticated: true });
+      const resultFrame = makeTransactionResultFrame();
+      const shell = makeFrame({ authenticated: true });
+      const child = makeTransactionResultFrame();
+      let restored = false;
+      Object.assign(page, {
+        mainFrame: vi
+          .fn()
+          .mockImplementation(() =>
+            restored
+              ? shell
+              : page.frames().includes(resultFrame)
+                ? resultFrame
+                : page.frame,
+          ),
+      });
+      detachQueryFrameAfterSearch(page, [resultFrame], transactionTables);
+      installCardFlow(page, [child]);
+      const previousEvaluate = page.evaluate;
+      page.evaluate = vi.fn().mockImplementation(async (fn: unknown) => {
+        if (String(fn).includes("getMenuObjById")) return restored;
+        return previousEvaluate(fn);
+      });
+      const previousGoto = page.goto;
+      page.goto = vi.fn().mockImplementation(async (url: string) => {
+        if (url !== FRAME_URL) return previousGoto(url);
+        restored = true;
+        resultFrame.detached = true;
+        page.frames.mockReturnValue([shell, child]);
+      });
+      if (restoreFails) {
+        page.waitForFunction.mockRejectedValue(
+          new Error("menu runtime unavailable"),
+        );
+      }
+      const browser = makeBrowser(page);
+      puppeteerMock.launch.mockResolvedValue(browser);
+      const pending = createFirstbankConnector({} as Fetcher, vi.fn()).sync({
+        ...credentials,
+        sessionCookies: "[]",
+      });
+      await Promise.all([
+        restoreFails
+          ? expect(pending).rejects.toThrow("第一銀行網銀導覽環境未載入完成")
+          : expect(pending).resolves.toBeDefined(),
+        vi.advanceTimersByTimeAsync(20_000),
+      ]);
+      expect(
+        page.goto.mock.calls.filter(([url]) => url === FRAME_URL),
+      ).toHaveLength(1);
+      expect(resultFrame.goto).not.toHaveBeenCalledWith(
+        HOME_URL,
+        expect.anything(),
+      );
+      expect(shell.goto).not.toHaveBeenCalled();
+      for (const dataFunc of ["F1632", "F1633", "F1634"]) {
+        expect(
+          child.click.mock.calls.filter(
+            ([selector]) => selector === `a[data-func="${dataFunc}"]`,
+          ),
+        ).toHaveLength(restoreFails ? 0 : 1);
+      }
+      expect(
+        child.goto.mock.calls.some(([url]) =>
+          String(url).includes("frameFirstCard"),
+        ),
+      ).toBe(false);
+    },
+  );
+
+  it.each([false, true])(
+    "未出帳入口暫時消失時僅重試一次，持續失敗=%s",
+    async (persistent) => {
+      vi.useFakeTimers();
+      const page = makePage({ authenticated: true });
+      const frame = makeTransactionResultFrame();
+      detachQueryFrameAfterSearch(page, [frame], transactionTables);
+      const previousClick = frame.click;
+      const previousEvaluate = frame.evaluate;
+      let unbilledAttempts = 0;
+      frame.evaluate = vi
+        .fn()
+        .mockImplementation(async (fn: unknown, arg?: unknown) => {
+          if (arg === "F1634" && String(fn).includes("link.click()")) {
+            unbilledAttempts += 1;
+            if (persistent || unbilledAttempts === 1) return false;
+          }
+          return previousEvaluate(fn, arg);
+        });
+      const browser = makeBrowser(page);
+      puppeteerMock.launch.mockResolvedValue(browser);
+      const sync = createFirstbankConnector({} as Fetcher, vi.fn()).sync({
+        ...credentials,
+        sessionCookies: "[]",
+      });
+      await Promise.all([
+        persistent
+          ? expect(sync).rejects.toThrow("第一銀行信用卡功能入口讀取失敗。")
+          : expect(sync).resolves.toBeDefined(),
+        vi.advanceTimersByTimeAsync(20_000),
+      ]);
+      expect(unbilledAttempts).toBe(2);
+      expect(frame.waitForSelector).not.toHaveBeenCalled();
+      expect(
+        previousClick.mock.calls.filter(
+          ([selector]) => selector === 'a[data-func="F1632"]',
+        ),
+      ).toHaveLength(1);
+      expect(
+        previousClick.mock.calls.filter(
+          ([selector]) => selector === 'a[data-func="F1633"]',
+        ),
+      ).toHaveLength(1);
+      expect(browser.close).toHaveBeenCalledOnce();
+    },
+  );
 
   it("排除主 frameset 並等待超過舊 10 秒門檻的帳單回應", async () => {
     vi.useFakeTimers();
@@ -1292,7 +1526,7 @@ describe("第一銀行信用卡 Browser Run 擷取", () => {
       expect(cardFrame.click).toHaveBeenCalledWith('a[data-func="F1633"]');
       expect(cardFrame.click).not.toHaveBeenCalledWith('a[data-func="F1634"]');
       expect(logs.join("\n")).toContain(
-        "card-query-timeout path=/NetBank/ajax/frameFirstCard.html elapsedMs=31000 detail=recentPayments",
+        "card-query-timeout path=/NetBank/ajax/frameFirstCard.html elapsedMs=30000 detail=recentPayments",
       );
     } finally {
       logSpy.mockRestore();
