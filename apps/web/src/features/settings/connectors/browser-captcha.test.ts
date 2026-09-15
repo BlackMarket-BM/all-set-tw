@@ -49,4 +49,16 @@ describe("browserCaptchaFailure", () => {
       sessionInvalidated: true,
     });
   });
+
+  it("keeps the current image when First Bank card parsing fails after login", () => {
+    const message = "第一銀行連線失敗：第一銀行信用卡交易欄位格式已變更。";
+    expect(
+      browserCaptchaFailure(
+        new ApiRequestError("FIRSTBANK_CONNECTION_FAILED", message, 502),
+      ),
+    ).toEqual({
+      message,
+      sessionInvalidated: false,
+    });
+  });
 });

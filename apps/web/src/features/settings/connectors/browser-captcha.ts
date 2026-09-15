@@ -13,7 +13,10 @@ export function browserCaptchaFailure(error: unknown) {
   const message = error instanceof Error ? error.message : "驗證或同步失敗";
   const sessionInvalidated =
     error instanceof ApiRequestError &&
-    INVALIDATED_CAPTCHA_SESSION_CODES.has(error.code);
+    INVALIDATED_CAPTCHA_SESSION_CODES.has(error.code) &&
+    !(
+      error.code === "FIRSTBANK_CONNECTION_FAILED" && /格式已變更/.test(message)
+    );
 
   return {
     message: sessionInvalidated ? `${message} 請重新取得驗證碼。` : message,

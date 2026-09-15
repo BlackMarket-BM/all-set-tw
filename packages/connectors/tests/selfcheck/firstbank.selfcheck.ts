@@ -445,4 +445,82 @@ assert.equal(
   1,
 );
 
+const fallbackBillFields = parseFirstbankData(
+  {
+    cardBill: {
+      HEAD: { MSGID: "CMSQRY0014", RETURNCODE: "0000" },
+      CONTENT: {
+        BillRecords: [
+          {
+            BillDate: "2026/08/03",
+            PayEndDate: "2026/08/18",
+            TotalAmount: "",
+            StatementAmount: "1,234",
+            Records: [
+              {
+                CardNo: cardNumber,
+                TransDate: "",
+                AcctDate: "2026/07/22",
+                TransDetail: "空白消費日改用入帳日",
+                AcctAmount: "",
+                TransAmount: "888",
+              },
+              {
+                CardNo: cardNumber,
+                TransDate: "20260720143000",
+                TransDetail: "緊密日期時間",
+                Amount: "66",
+              },
+            ],
+          },
+        ],
+      },
+    },
+  },
+  now,
+);
+assert.equal(
+  fallbackBillFields.bankTransactions.find((transaction) =>
+    transaction.description.includes("空白消費日"),
+  )?.authorizedAt,
+  "2026-07-22",
+);
+assert.equal(
+  fallbackBillFields.bankTransactions.find((transaction) =>
+    transaction.description.includes("空白消費日"),
+  )?.amount,
+  -888,
+);
+assert.equal(
+  fallbackBillFields.bankTransactions.find((transaction) =>
+    transaction.description.includes("緊密日期時間"),
+  )?.authorizedAt,
+  "2026-07-20",
+);
+assert.equal(fallbackBillFields.creditCardBills[0]?.statementAmount, 1234);
+
+assert.throws(
+  () =>
+    parseFirstbankData({
+      cardBill: {
+        HEAD: { MSGID: "CMSQRY0014", RETURNCODE: "0000" },
+        CONTENT: {
+          BillRecords: [
+            {
+              BillDate: "2026/08/03",
+              Records: [
+                {
+                  TransDate: "2026/07/20",
+                  TransDetail: "無法解析金額",
+                  AcctAmount: "N/A",
+                },
+              ],
+            },
+          ],
+        },
+      },
+    }),
+  /keys=AcctAmount,TransDate,TransDetail/,
+);
+
 console.log("First Bank Web connector self-check passed.");

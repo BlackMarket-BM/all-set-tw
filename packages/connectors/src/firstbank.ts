@@ -51,6 +51,41 @@ export type FirstbankData = {
 type JsonRecord = Record<string, unknown>;
 type HtmlRow = { attrs: string; cells: string[] };
 const TWD = "TWD";
+const CARD_TX_DATE_FIELDS = [
+  "TransDate",
+  "transactionDate",
+  "authorizedAt",
+  "TxnDate",
+  "TxDate",
+  "ConsumeDate",
+  "PurchaseDate",
+  "TradeDate",
+] as const;
+const CARD_TX_POSTED_DATE_FIELDS = [
+  "AcctDate",
+  "postedDate",
+  "postingDate",
+  "ValueDate",
+] as const;
+const CARD_TX_AMOUNT_FIELDS = [
+  "AcctAmount",
+  "TransAmount",
+  "Amount",
+  "LocalAmount",
+  "amount",
+  "TxnAmount",
+  "OrigAmount",
+  "TWDAmount",
+  "NTDAmount",
+  "NTAmount",
+  "BillAmount",
+] as const;
+const CARD_BILL_AMOUNT_FIELDS = [
+  "TotalAmount",
+  "StatementAmount",
+  "statementAmount",
+  "CurrentPeriodAmount",
+] as const;
 
 const SUPPORTED_CURRENCIES = new Set([
   "AED",
@@ -912,54 +947,47 @@ function parseCardBills(payload: unknown): CardBill[] {
           `第一銀行信用卡交易格式已變更（第 ${nestedIndex + 1} 筆）。`,
         );
       }
-      const date = normalizeDate(
-        property(value, "TransDate", "transactionDate", "authorizedAt"),
-      );
-      const rawAmount = firstDefinedNumber(
-        property(value, "AcctAmount", "Amount", "LocalAmount", "amount"),
-      );
+      const date = firstParsedDate(value, CARD_TX_DATE_FIELDS);
+      const postedDate = firstParsedDate(value, CARD_TX_POSTED_DATE_FIELDS);
+      const authorizedAt = date ?? postedDate;
+      const rawAmount = firstParsedNumber(value, CARD_TX_AMOUNT_FIELDS);
       const description =
         propertyString(value, "TransDetail", "description", "Memo") ||
         "第一銀行信用卡消費";
       if (
-        date === undefined &&
+        authorizedAt === undefined &&
         (rawAmount === undefined || isCardSummary(description))
       ) {
         continue;
       }
-      if (date === undefined || rawAmount === undefined) {
-        throw new FirstbankProtocolError("第一銀行信用卡交易欄位格式已變更。");
+      if (authorizedAt === undefined || rawAmount === undefined) {
+        throw new FirstbankProtocolError(
+          `第一銀行信用卡交易欄位格式已變更（${cardRecordParseDetail(value, authorizedAt, rawAmount)}）。`,
+        );
       }
       if (rawAmount === 0 || isCardSummary(description)) continue;
       const cardKey = last4(propertyString(value, "CardNo")) || firstCardKey;
-      const postedDate = normalizeDate(
-        property(value, "AcctDate", "postedDate", "postingDate"),
-      );
       transactions.push({
         cardKey,
         currency,
-        authorizedAt: date,
-        postedDate: postedDate || date,
+        authorizedAt,
+        postedDate: postedDate || authorizedAt,
         amount: signedCardAmount(rawAmount, description),
         description,
         status: "posted",
       });
     }
-    const statementAmount = firstDefinedNumber(
-      property(
-        record,
-        "TotalAmount",
-        "StatementAmount",
-        "statementAmount",
-        "CurrentPeriodAmount",
-      ),
-    );
-    const minimumPayment = firstDefinedNumber(
-      property(record, "MinAmount", "MinimumPayment", "minimumPayment"),
-    );
-    const creditLimit = firstDefinedNumber(
-      property(record, "CreditAmount", "CreditLimit", "creditLimit"),
-    );
+    const statementAmount = firstParsedNumber(record, CARD_BILL_AMOUNT_FIELDS);
+    const minimumPayment = firstParsedNumber(record, [
+      "MinAmount",
+      "MinimumPayment",
+      "minimumPayment",
+    ]);
+    const creditLimit = firstParsedNumber(record, [
+      "CreditAmount",
+      "CreditLimit",
+      "creditLimit",
+    ]);
     return {
       cardKey: firstCardKey,
       currency,
@@ -980,12 +1008,10 @@ function parseCardUnbilled(payload: unknown): CardTransaction[] {
   const records = cardEnvelopeRecords(payload, "0008", "Records");
   const output: CardTransaction[] = [];
   for (const [index, record] of records.entries()) {
-    const date = normalizeDate(
-      property(record, "TransDate", "transactionDate", "authorizedAt"),
-    );
-    const rawAmount = firstDefinedNumber(
-      property(record, "TransAmount", "Amount", "LocalAmount", "amount"),
-    );
+    const date =
+      firstParsedDate(record, CARD_TX_DATE_FIELDS) ??
+      firstParsedDate(record, CARD_TX_POSTED_DATE_FIELDS);
+    const rawAmount = firstParsedNumber(record, CARD_TX_AMOUNT_FIELDS);
     const description =
       propertyString(record, "TransDetail", "description", "Memo") ||
       "第一銀行信用卡待入帳消費";
@@ -1018,12 +1044,17 @@ function parseRecentPayments(payload: unknown): CardPayment[] {
   const records = cardEnvelopeRecords(payload, "0006", "Records");
   const output: CardPayment[] = [];
   for (const [index, record] of records.entries()) {
-    const date = normalizeDate(
-      property(record, "PayDate", "PaymentDate", "paymentDate", "date"),
-    );
-    const amount = firstDefinedNumber(
-      property(record, "Amount", "PaymentAmount", "paymentAmount"),
-    );
+    const date = firstParsedDate(record, [
+      "PayDate",
+      "PaymentDate",
+      "paymentDate",
+      "date",
+    ]);
+    const amount = firstParsedNumber(record, [
+      "Amount",
+      "PaymentAmount",
+      "paymentAmount",
+    ]);
     if (date === undefined && amount === undefined) continue;
     if (date === undefined || amount === undefined) {
       throw new FirstbankProtocolError(
@@ -1268,14 +1299,35 @@ function numberValue(value: unknown): number | undefined {
   return negative ? -Math.abs(parsed) : parsed;
 }
 
-function firstDefinedNumber(value: unknown) {
-  return numberValue(value);
+function firstParsedNumber(record: JsonRecord, names: readonly string[]) {
+  for (const name of names) {
+    const parsed = numberValue(property(record, name));
+    if (parsed !== undefined) return parsed;
+  }
+  return undefined;
+}
+
+function firstParsedDate(record: JsonRecord, names: readonly string[]) {
+  for (const name of names) {
+    const parsed = normalizeDate(property(record, name));
+    if (parsed) return parsed;
+  }
+  return undefined;
+}
+
+function cardRecordParseDetail(
+  record: JsonRecord,
+  date: string | undefined,
+  amount: number | undefined,
+) {
+  const keys = Object.keys(record).sort().join(",");
+  return `keys=${keys || "none"}; date=${date ?? "missing"}; amount=${amount === undefined ? "missing" : "ok"}`;
 }
 
 function normalizeDate(value: unknown): string | undefined {
   const text = stripTags(String(value ?? "")).trim();
   if (!text) return undefined;
-  const compact = /^(\d{4})(\d{2})(\d{2})$/.exec(text);
+  const compact = /^(\d{4})(\d{2})(\d{2})/.exec(text);
   const match =
     compact ||
     /^(\d{3,4})\s*[^0-9]\s*(\d{1,2})\s*[^0-9]\s*(\d{1,2})/.exec(text);

@@ -91,6 +91,22 @@ Connector 不得依賴 Hono、D1、Worker `Env`，也不得直接寫入資料庫
 只記錄狀態碼、嘗試次數與重試延遲。`429` 額度／限流錯誤維持既有處理，
 session 重連、瀏覽器建立後的操作與銀行登入不在此重試範圍內。
 
+第一銀行遇到 `MULTI_SESSION_LOGIN` 回覆時，視為目前登入受阻並標記
+`needs_user_action`；不將「您已成功登入」文案視為可用 session 的證據，
+不點擊該回覆頁的確認、不重送帳密、不重試 OCR，也不歸類為驗證碼錯誤。
+既有／人工驗證 session 亦須先檢查此回覆，不能被舊登入標記略過。
+
+第一銀行信用卡切換必須保留頂層網銀 frameset，確認其
+`getMenuObjById` 函式可用；遺失時以既有 session 回到 `/NetBank/frame.html`
+並等待導覽環境載入，之後只在子頁框開啟功能總覽。
+不得把頂層內容頁直接導到 `01.jsp`，也不得直接導到信用卡 bridge 作為 fallback，
+以免缺少官方選單／SSO 初始化而落入登出頁。
+信用卡入口直接觸發既有 `a[data-func]` 的 click handler，不依賴服務總覽
+選單展開或元素可見性，也不改寫銀行表單或自行組裝信用卡請求。
+只有入口不存在時重新取得功能頁並最多重試一次；觸發後導覽／context 中斷
+則等待原查詢回應，不重複送出。三種預期 API 回應仍須完整取得才算成功；
+入口失敗以 `card-entry-*` log 區分，錯誤內容須遮罩。
+
 ## 正規化資料契約
 
 - Connector 回傳 `SyncResult`，資料必須符合 `@taiwan-fin-hub/core`。
@@ -163,6 +179,7 @@ session 重連、瀏覽器建立後的操作與銀行登入不在此重試範圍
 - 需要 CAPTCHA／OTP 時，runtime registry 提供 `prepareChallenge`，route 只處理輸入驗證與 HTTP error mapping。
 - 排程不得主動寄送 OTP；需要互動時標記 `needs_user_action`。
 - 若外部服務支援接管其他登入中的裝置，必須明確定義手動與排程的 `force` policy，並在介面與使用文件提示可能中斷使用者目前的工作階段。
+- 第一銀行同一帳號同時只能有一個操作中的網路銀行登入。同步若遇到「已登入導致無法操作」等占用訊息，會先嘗試一次確認／接管；仍無法進入時標記 `needs_user_action`，不得再當成圖形驗證碼失敗而重試 OCR。排程與手動都不強制登出其他裝置上的工作階段。
 - 新 connector 必須透過 D1 migration 建立 `<connectorId>:all` sync job，預設停用。
 
 ### 集保分段同步
