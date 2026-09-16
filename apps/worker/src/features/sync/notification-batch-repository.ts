@@ -1,4 +1,9 @@
 import {
+  publishActivityRunStatement,
+  findUnfinishedActivityReport,
+} from "./activity-detail-repository";
+import { safelyMaterializeActivityReport } from "./activity-detail-service";
+import {
   createDrizzle,
   sanitizeDatabaseError,
   syncJobs,
@@ -170,9 +175,10 @@ export async function recordDefaultScheduleBatchResult(
     jobId: string;
     notification: SyncNotificationEvent;
     newRecords: SyncNewRecordCounts;
+    runId?: string;
   },
 ) {
-  const result = await db
+  const statement = db
     .prepare(
       `UPDATE scheduled_sync_batch_results
        SET connector_id = ?, status = ?, completed_at = ?,
@@ -190,12 +196,26 @@ export async function recordDefaultScheduleBatchResult(
       input.newRecords.investmentTransactions,
       input.batchId,
       input.jobId,
-    )
-    .run();
-  return result.meta.changes === 1;
+    );
+  const results = await db.batch([
+    statement,
+    ...(input.runId
+      ? [
+          publishActivityRunStatement(
+            db,
+            input.runId,
+            input.batchId,
+            input.notification.connectorId,
+          ),
+        ]
+      : []),
+  ]);
+  return results[0]!.meta.changes === 1;
 }
 
 export async function finalizeOpenDefaultScheduleBatch(db: D1Database) {
+  const unfinished = await findUnfinishedActivityReport(db);
+  if (unfinished) await safelyMaterializeActivityReport(db, unfinished);
   const batchId = await findOpenDefaultScheduleBatchId(db);
   if (!batchId) return null;
   return claimCompletedDefaultScheduleBatch(db, batchId);
@@ -242,7 +262,21 @@ export async function claimCompletedDefaultScheduleBatch(
       batchId,
     )
     .run();
-  if (claim.meta.changes !== 1) return null;
+  if (claim.meta.changes !== 1) {
+    const completed = await createDrizzle(db)
+      .select({ id: scheduledSyncBatches.id })
+      .from(scheduledSyncBatches)
+      .where(
+        and(
+          eq(scheduledSyncBatches.id, batchId),
+          isNotNull(scheduledSyncBatches.completedAt),
+        ),
+      )
+      .get();
+    if (completed) await safelyMaterializeActivityReport(db, batchId);
+    return null;
+  }
+  await safelyMaterializeActivityReport(db, batchId);
 
   const results = await createDrizzle(db)
     .select({

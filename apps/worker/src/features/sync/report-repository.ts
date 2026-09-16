@@ -1,3 +1,4 @@
+import { safelyMaterializeActivityReport } from "./activity-detail-service";
 import {
   createDrizzle,
   sanitizeDatabaseError,
@@ -73,6 +74,7 @@ export async function recoverLatestScheduledSyncSource(
     connectorId: ConnectorId;
     newRecords: SyncNewRecordCounts;
     batchId?: string | null;
+    runId?: string;
   },
 ) {
   // A caller that captured no failed report must not accidentally repair a
@@ -173,7 +175,25 @@ export async function recoverLatestScheduledSyncSource(
         latest.jobId,
         recoveredAt,
       ),
+    ...(input.runId
+      ? [
+          db
+            .prepare(
+              `UPDATE sync_activity_runs SET published = 1 WHERE id = ? AND batch_id = ?
+      AND EXISTS (SELECT 1 FROM scheduled_sync_batch_results WHERE batch_id = ? AND connector_id = ? AND recovered_at = ?)`,
+            )
+            .bind(
+              input.runId,
+              latest.batchId,
+              latest.batchId,
+              input.connectorId,
+              recoveredAt,
+            ),
+        ]
+      : []),
   ]);
+  if (results[0]?.meta.changes === 1)
+    await safelyMaterializeActivityReport(db, latest.batchId);
   return results[0]?.meta.changes === 1;
 }
 

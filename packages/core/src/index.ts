@@ -620,3 +620,21 @@ export {
   invoiceTransactionCandidates,
   type InvoiceTransactionMatches,
 } from "./activity-matching";
+
+export interface SyncActivityDetail {
+  id: string;
+  date: string;
+  title: string;
+  subtitle: string;
+  amount?: number;
+  currency: string;
+  status: string;
+  changes: Array<"added" | "posted" | "invoice_linked">;
+  invoiceId?: string;
+  syncedAt: string;
+}
+export interface SyncActivityDetailsPage {
+  availability: "available" | "legacy" | "pending";
+  items: SyncActivityDetail[];
+  nextOffset: number | null;
+}

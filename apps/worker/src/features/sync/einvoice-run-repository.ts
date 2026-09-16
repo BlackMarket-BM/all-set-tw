@@ -759,7 +759,7 @@ export async function releaseEinvoiceRunClaimForRetry(
 
 /**
  * Promotes every completed invoice and line item directly from the durable run
- * tables with a fixed five-statement D1 transaction. Every write repeats the
+ * tables with a fixed seven-statement D1 transaction. Every write repeats the
  * pinned-settings guard, so a concurrent credential save makes the whole batch
  * a no-op instead of mixing two accounts' data.
  */
@@ -789,8 +789,32 @@ export async function promoteEinvoiceRunRecords(
   )`;
   const invoiceRaw = jsonRawPayloadExpression("source.normalized_invoice_json");
   const lineItemRaw = jsonRawPayloadExpression("line.value");
-  // 五個 set-based statements 共用設定版本 CAS；計數、資料、cursor 與 promoted_at 不可拆開。
+  // 七個 set-based statements 共用設定版本 CAS；計數、資料、cursor 與 promoted_at 不可拆開。
   const results = await db.batch([
+    db
+      .prepare(
+        `UPDATE sync_activity_runs SET captured_at = ? WHERE id = ? AND ${guard}`,
+      )
+      .bind(
+        input.now,
+        input.runId,
+        input.runId,
+        input.expectedSettingsUpdatedAt,
+      ),
+    db
+      .prepare(
+        `INSERT OR IGNORE INTO sync_activity_changes (run_id, entity_type, record_id, change_kind, snapshot)
+      SELECT source.run_id, 'invoice', 'einvoice:' || source.invoice_source_id, 'added',
+        json_object('id', 'einvoice:' || source.invoice_source_id,
+          'invoiceDate', json_extract(source.normalized_invoice_json, '$.invoiceDate'),
+          'sellerName', json_extract(source.normalized_invoice_json, '$.sellerName'),
+          'invoiceNumber', json_extract(source.normalized_invoice_json, '$.invoiceNumber'),
+          'amount', CAST(json_extract(source.normalized_invoice_json, '$.amount') AS INTEGER))
+      FROM einvoice_sync_run_items source JOIN sync_activity_runs journal ON journal.id = source.run_id
+      WHERE source.run_id = ? AND source.status = 'done' AND ${guard}
+        AND NOT EXISTS (SELECT 1 FROM invoices target WHERE target.connector_id = 'einvoice' AND target.source_id = source.invoice_source_id)`,
+      )
+      .bind(input.runId, input.runId, input.expectedSettingsUpdatedAt),
     db
       .prepare(
         `UPDATE einvoice_sync_runs
@@ -927,7 +951,7 @@ export async function promoteEinvoiceRunRecords(
         input.now,
       ),
   ]);
-  return results[3]!.meta.changes === 1 && results[4]!.meta.changes === 1;
+  return results[5]!.meta.changes === 1 && results[6]!.meta.changes === 1;
 }
 
 /** Terminal CAS. A completed run additionally requires every item to be done. */

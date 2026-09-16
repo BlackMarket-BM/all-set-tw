@@ -215,7 +215,7 @@ describe("Drizzle schema parity", () => {
         }
       }
       const expected = inspect(migrated);
-      expect(expected).toHaveLength(28);
+      expect(expected).toHaveLength(31);
       expect(inspect(generated)).toEqual(expected);
       expect(generated.prepare("PRAGMA foreign_key_check").all()).toEqual([]);
       // An unchanged schema must never produce an initialization migration.

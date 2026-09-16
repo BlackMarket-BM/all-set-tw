@@ -1,4 +1,9 @@
 import {
+  beginActivityRun,
+  publishActivityRunStatement,
+  findActivityRunBatchId,
+} from "./activity-detail-repository";
+import {
   fetchEInvoiceInvoiceDetail,
   initializeEInvoiceSync,
   parseInvoiceConfig,
@@ -36,7 +41,10 @@ import {
   type EinvoiceRunTrigger,
 } from "./einvoice-run-repository";
 import { findSyncJob } from "./schedule-repository";
-import { recoverLatestScheduledSyncSource } from "./report-repository";
+import {
+  recoverLatestScheduledSyncSource,
+  findLatestRecoverableScheduledBatchId,
+} from "./report-repository";
 import {
   isUserActionError,
   safeErrorMessage,
@@ -93,6 +101,15 @@ export async function startEinvoiceSyncRun(
       });
       throw new SyncAlreadyRunningError("einvoice");
     }
+    await beginActivityRun(
+      env.DB,
+      run.id,
+      run.scheduled_batch_id ??
+        (run.trigger === "manual"
+          ? await findLatestRecoverableScheduledBatchId(env.DB, "einvoice")
+          : null),
+      "einvoice",
+    );
     await updateEinvoiceProgressCursor(env.DB, run, "queued");
   }
   return { run, created };
@@ -402,6 +419,8 @@ async function finalizeEinvoiceRun(
     if (status === "success" && run.trigger === "manual") {
       await recoverLatestScheduledSyncSource(env.DB, {
         connectorId: "einvoice",
+        runId: run.id,
+        batchId: await findActivityRunBatchId(env.DB, run.id),
         newRecords: {
           invoices: run.new_invoice_count,
           bankTransactions: 0,
@@ -478,6 +497,15 @@ async function finalizeEinvoiceRun(
       ),
     );
   }
+  if (run.scheduled_batch_id)
+    statements.push(
+      publishActivityRunStatement(
+        env.DB,
+        run.id,
+        run.scheduled_batch_id,
+        "einvoice",
+      ),
+    );
   statements.push(
     env.DB.prepare(
       `UPDATE einvoice_sync_runs
@@ -500,6 +528,8 @@ async function finalizeEinvoiceRun(
   if (success && run.trigger === "manual") {
     await recoverLatestScheduledSyncSource(env.DB, {
       connectorId: "einvoice",
+      runId: run.id,
+      batchId: await findActivityRunBatchId(env.DB, run.id),
       newRecords: {
         invoices: run.new_invoice_count,
         bankTransactions: 0,

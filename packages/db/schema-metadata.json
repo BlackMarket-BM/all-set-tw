@@ -488,6 +488,39 @@
         "promoted_at": "暫存結果成功寫入正式金融資料表的時間。",
         "completed_at": "此次同步成功、失敗或需要使用者處理而結案的時間。"
       }
+    },
+    "sync_activity_runs": {
+      "description": "同步執行與排程報告的明確關聯，涵蓋原始同步及成功的手動補救。",
+      "notes": "published 在結果 CAS 同批次更新；materialized 為 1 才可讀取完整明細。隨報告刪除而級聯清除。一般手動與自訂排程不建立此報告。",
+      "columns": {
+        "id": "同步鎖所屬的執行 ID；持久化同步使用 durable run ID。",
+        "batch_id": "固定的排程報告批次，不能依時間推測歸屬。",
+        "connector_id": "此次同步的來源。",
+        "created_at": "登記此次執行的時間。",
+        "captured_at": "金融資料與變動快照成功寫入的時間。",
+        "published": "來源結果或手動補救成功登記後為 1。",
+        "materialized": "活動配對與展示快照完整保存後為 1。"
+      }
+    },
+    "sync_activity_changes": {
+      "description": "與金融資料 promotion 同一 transaction 保存的新增紀錄與入帳事件。",
+      "notes": "不保存 raw payload 或憑證。pending 僅為 transaction 內的候選，沒有變動即移除；紀錄 ID 不設金融資料 FK，保留歷史快照。",
+      "columns": {
+        "run_id": "所屬同步執行。",
+        "entity_type": "invoice、bank_transaction 或 investment_transaction。",
+        "record_id": "同步時的原始紀錄識別碼。",
+        "change_kind": "added 新增、posted 入帳；pending 是 transaction 內的暫時候選。",
+        "snapshot": "標準化活動資料的 JSON 快照，不含 raw payload。"
+      }
+    },
+    "sync_activity_details": {
+      "description": "報告完成時沿用活動配對規則產生的活動展示快照。",
+      "notes": "同一次執行內同一活動只保存一次；發票配對既有交易時顯示補上發票。後續同步不改寫已完成的快照。",
+      "columns": {
+        "run_id": "所屬同步執行，隨報告級聯刪除。",
+        "activity_id": "來源種類及活動 ID，作為執行內的去重鍵。",
+        "snapshot": "供 API 回傳的日期、名稱、原幣金額、變動種類、發票關係與同步時間 JSON 快照。"
+      }
     }
   }
 }

@@ -1,4 +1,9 @@
 import {
+  beginActivityRun,
+  publishActivityRunStatement,
+  findActivityRunBatchId,
+} from "./activity-detail-repository";
+import {
   createTdccClient,
   EPassbookError,
   ensureTdccSession,
@@ -46,7 +51,10 @@ import {
   type TdccRunTrigger,
 } from "./tdcc-run-repository";
 import { findSyncJob } from "./schedule-repository";
-import { recoverLatestScheduledSyncSource } from "./report-repository";
+import {
+  recoverLatestScheduledSyncSource,
+  findLatestRecoverableScheduledBatchId,
+} from "./report-repository";
 import {
   bankAccountRecord,
   bankBalanceSnapshotRecord,
@@ -151,6 +159,15 @@ export async function startTdccSyncRun(
   }
 
   try {
+    await beginActivityRun(
+      env.DB,
+      run.id,
+      run.scheduled_batch_id ??
+        (run.trigger === "manual" && run.scope === "all"
+          ? await findLatestRecoverableScheduledBatchId(env.DB, "tdcc")
+          : null),
+      "tdcc",
+    );
     if (input.trigger === "manual") {
       await initializeTdccRun(env, run, config, settings.sync_cursor);
     }
@@ -610,6 +627,8 @@ async function finishTdccJobAfterPromotion(
   if (run.trigger === "manual" && run.scope === "all") {
     await recoverLatestScheduledSyncSource(env.DB, {
       connectorId: "tdcc",
+      runId: run.id,
+      batchId: await findActivityRunBatchId(env.DB, run.id),
       newRecords,
     }).catch((error) =>
       console.error("[sync] failed to recover latest TDCC report", error),
@@ -618,21 +637,27 @@ async function finishTdccJobAfterPromotion(
   if (run.scheduled_batch_id) {
     const job = await findSyncJob(env.DB, "tdcc", "all");
     if (job) {
-      await env.DB.prepare(
-        `UPDATE scheduled_sync_batch_results
+      await env.DB.batch([
+        env.DB.prepare(
+          `UPDATE scheduled_sync_batch_results
            SET connector_id = 'tdcc', status = 'success', completed_at = ?,
                new_invoices = 0, new_bank_transactions = ?,
                new_investment_transactions = ?
            WHERE batch_id = ? AND job_id = ? AND completed_at IS NULL`,
-      )
-        .bind(
+        ).bind(
           new Date().toISOString(),
           newRecords.bankTransactions,
           newRecords.investmentTransactions,
           run.scheduled_batch_id,
           job.id,
-        )
-        .run();
+        ),
+        publishActivityRunStatement(
+          env.DB,
+          run.id,
+          run.scheduled_batch_id,
+          "tdcc",
+        ),
+      ]);
     }
     const summary = await claimCompletedDefaultScheduleBatch(
       env.DB,
@@ -677,22 +702,28 @@ async function finishTdccJob(
       .bind(status, error, now, nextRunAt, now, job.id, run.id)
       .run();
     if (run.scheduled_batch_id) {
-      await env.DB.prepare(
-        `UPDATE scheduled_sync_batch_results
+      await env.DB.batch([
+        env.DB.prepare(
+          `UPDATE scheduled_sync_batch_results
            SET connector_id = 'tdcc', status = ?, completed_at = ?,
                new_invoices = 0, new_bank_transactions = ?,
                new_investment_transactions = ?
            WHERE batch_id = ? AND job_id = ? AND completed_at IS NULL`,
-      )
-        .bind(
+        ).bind(
           status,
           now,
           newRecords.bankTransactions,
           newRecords.investmentTransactions,
           run.scheduled_batch_id,
           job.id,
-        )
-        .run();
+        ),
+        publishActivityRunStatement(
+          env.DB,
+          run.id,
+          run.scheduled_batch_id,
+          "tdcc",
+        ),
+      ]);
     }
   }
   if (run.scheduled_batch_id) {

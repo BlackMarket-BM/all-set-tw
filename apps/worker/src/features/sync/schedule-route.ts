@@ -1,3 +1,4 @@
+import { getActivityDetailsPage } from "./activity-detail-service";
 import { isConnectorId } from "@taiwan-fin-hub/core";
 import { zValidator } from "@hono/zod-validator";
 import type { Hono } from "hono";
@@ -74,6 +75,39 @@ function registerSyncScheduleRoutes(api: Hono<AppBindings>) {
 
   api.get("/sync-reports/latest", async (c) =>
     c.json(await getLatestScheduledSyncReport(c.env.DB)),
+  );
+
+  api.get(
+    "/sync-reports/:batchId/sources/:connectorId/activities",
+    zValidator(
+      "param",
+      z.object({
+        batchId: z.string().min(1).max(200),
+        connectorId: z.string().refine(isConnectorId),
+      }),
+      validationHook("INVALID_REQUEST", "Invalid report source."),
+    ),
+    zValidator(
+      "query",
+      z.object({
+        offset: z.coerce.number().int().min(0).max(1000000).default(0),
+        asOf: z.string().datetime().optional(),
+      }),
+      validationHook("INVALID_REQUEST", "Invalid offset."),
+    ),
+    async (c) => {
+      const { batchId, connectorId } = c.req.valid("param");
+      const page = await getActivityDetailsPage(
+        c.env.DB,
+        batchId,
+        connectorId,
+        c.req.valid("query").offset,
+        c.req.valid("query").asOf,
+      );
+      return page
+        ? c.json(page)
+        : jsonError("SYNC_REPORT_NOT_FOUND", "同步報告或資料來源不存在。", 404);
+    },
   );
 
   api.patch(

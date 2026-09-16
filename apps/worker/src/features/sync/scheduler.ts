@@ -1,3 +1,4 @@
+import { beginActivityRun } from "./activity-detail-repository";
 import type { ConnectorId } from "@taiwan-fin-hub/core";
 import {
   acquireSyncJobLock,
@@ -177,12 +178,13 @@ async function runDefaultScheduleBatchJob(
     env,
     controller,
     job,
-    async (result) => {
+    async (result, runId) => {
       const recorded = await recordDefaultScheduleBatchResult(env.DB, {
         batchId,
         jobId: job.id,
         notification: result,
         newRecords: outcomeNewRecords,
+        runId,
       });
       if (!recorded) {
         throw new Error(
@@ -193,6 +195,7 @@ async function runDefaultScheduleBatchJob(
     (outcome) => {
       outcomeNewRecords = outcome.newRecords;
     },
+    batchId,
   );
   if (!notification) return false;
 
@@ -207,8 +210,12 @@ async function runScheduledJob(
   env: Env,
   controller: ScheduledController,
   due: SyncJobRow<ConnectorId>,
-  beforeRelease?: (notification: SyncNotificationEvent) => Promise<void>,
+  beforeRelease?: (
+    notification: SyncNotificationEvent,
+    runId: string,
+  ) => Promise<void>,
   onSuccess?: (outcome: Awaited<ReturnType<typeof runDueSyncJob>>) => void,
+  batchId?: string,
 ) {
   const runId = crypto.randomUUID();
   const lockRowId = canonicalSyncLockRowId(due.connector_id);
@@ -224,6 +231,7 @@ async function runScheduledJob(
   const stopHeartbeat = startSyncLockHeartbeat(env.DB, lockRowId, runId);
   const startedAt = Date.now();
   try {
+    await beginActivityRun(env.DB, runId, batchId, due.connector_id);
     let notification: SyncNotificationEvent;
     try {
       const outcome = await runDueSyncJob(env, due);
@@ -275,7 +283,7 @@ async function runScheduledJob(
       };
     }
 
-    if (beforeRelease) await beforeRelease(notification);
+    if (beforeRelease) await beforeRelease(notification, runId);
     return notification;
   } finally {
     stopHeartbeat();

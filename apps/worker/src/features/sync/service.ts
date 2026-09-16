@@ -1,3 +1,4 @@
+import { beginActivityRun } from "./activity-detail-repository";
 import { prepareCtbcAuthorizationWrite } from "./ctbc-authorizations";
 import { prepareSinopacAuthorizationWrite } from "./sinopac-authorizations";
 import { prepareObankTimeDepositWrite } from "./obank-time-deposits";
@@ -2063,6 +2064,7 @@ export async function withManualSyncLock(
       connectorId !== "tdcc" || scope === SYNC_SCOPE_ALL
         ? await findLatestRecoverableScheduledBatchId(env.DB, connectorId)
         : null;
+    await beginActivityRun(env.DB, runId, recoveryBatchId, connectorId);
     const outcome = await task();
     await markManualSyncSuccess(env.DB, connectorId, scope);
     if (connectorId !== "tdcc" || scope === SYNC_SCOPE_ALL) {
@@ -2070,6 +2072,7 @@ export async function withManualSyncLock(
         connectorId,
         newRecords: outcome.newRecords,
         batchId: recoveryBatchId,
+        runId,
       }).catch((error) => {
         // A report repair must never turn an otherwise successful manual sync
         // into a failed sync response.

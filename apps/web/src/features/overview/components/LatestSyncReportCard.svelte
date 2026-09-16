@@ -1,4 +1,6 @@
 <script lang="ts">
+  import type { ApiClient } from "@/shared/api/client";
+  import SyncActivityDetails from "./SyncActivityDetails.svelte";
   import { CircleCheckBig, RefreshCw, TriangleAlert } from "@lucide/svelte";
   import {
     connectorCatalog,
@@ -18,9 +20,13 @@
 
   let {
     report,
+    api,
     loading = false,
-  }: { report: ScheduledSyncReport | null | undefined; loading?: boolean } =
-    $props();
+  }: {
+    report: ScheduledSyncReport | null | undefined;
+    api: ApiClient;
+    loading?: boolean;
+  } = $props();
 
   const presentation = $derived(
     report ? syncReportStatusPresentation(report) : null,
@@ -129,7 +135,7 @@
             {/if}
           </span>
           <div class="min-w-0">
-            <p class="text-xs font-semibold text-ink/45">最近一次同步</p>
+            <p class="text-xs font-semibold text-ink/45">最近一次排程同步</p>
             <h2 class="mt-1 text-lg font-semibold">{presentation.label}</h2>
             <p class="mt-1 text-xs text-ink/50">
               {presentation.description}
@@ -227,23 +233,31 @@
             <span class="hidden group-open:inline">收合各資料來源</span>
           </summary>
           <div class="mt-3 grid gap-2">
-            {#each report.sources as source (source.connectorId)}
-              <div
-                class="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 rounded-lg bg-paper px-3 py-2.5"
-              >
-                <div class="min-w-0">
-                  <p class="truncate text-xs font-semibold">
-                    {connectorCatalog[source.connectorId].title}
-                  </p>
-                  <p class="mt-0.5 text-[11px] text-ink/45">
-                    {sourceNewRecordSummary(source)}
-                  </p>
-                </div>
-                <span
-                  class={`text-xs font-semibold ${source.status === "success" ? "text-moss" : "text-amber-700"}`}
+            {#each report.sources as source (`${report.id}:${source.connectorId}`)}
+              <div class="rounded-lg bg-paper px-3 py-2.5">
+                <div
+                  class="flex flex-wrap items-center justify-between gap-x-4 gap-y-1"
                 >
-                  {sourceStatusLabel(source.status)}
-                </span>
+                  <div class="min-w-0">
+                    <p class="truncate text-xs font-semibold">
+                      {connectorCatalog[source.connectorId].title}
+                    </p>
+                    <p class="mt-0.5 text-[11px] text-ink/45">
+                      {sourceNewRecordSummary(source)}
+                    </p>
+                  </div>
+                  <span
+                    class={`text-xs font-semibold ${source.status === "success" ? "text-moss" : "text-amber-700"}`}
+                  >
+                    {sourceStatusLabel(source.status)}
+                  </span>
+                </div>
+                <SyncActivityDetails
+                  {api}
+                  batchId={report.id}
+                  connectorId={source.connectorId}
+                  revision={source.recoveredAt ?? source.completedAt}
+                />
               </div>
             {/each}
           </div>

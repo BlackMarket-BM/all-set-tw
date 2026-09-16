@@ -981,6 +981,9 @@ describe("durable e-invoice sync runs", () => {
       ],
     });
 
+    database.exec(`INSERT INTO scheduled_sync_batches (id, created_at) VALUES ('report', '2026-08-12');
+      INSERT INTO sync_activity_runs (id, batch_id, connector_id, created_at) VALUES ('run-1', 'report', 'einvoice', '2026-08-12');`);
+
     await expect(
       promoteEinvoiceRunRecords(db, {
         runId: run.id,
@@ -1061,6 +1064,21 @@ describe("durable e-invoice sync runs", () => {
       updated_at: "2026-08-12T01:00:00.000Z",
     });
 
+    const journal = database
+      .prepare(
+        "SELECT record_id, change_kind, snapshot FROM sync_activity_changes",
+      )
+      .all();
+    expect(journal).toHaveLength(1);
+    expect(journal[0]).toMatchObject({
+      record_id: "einvoice:invoice-new",
+      change_kind: "added",
+    });
+    expect(JSON.parse(String(journal[0]!.snapshot))).toMatchObject({
+      id: "einvoice:invoice-new",
+      sellerName: "new seller",
+      amount: 120,
+    });
     const promotedState = promotionState(database, run.id);
     await expect(
       promoteEinvoiceRunRecords(db, {
@@ -1071,6 +1089,13 @@ describe("durable e-invoice sync runs", () => {
       }),
     ).resolves.toBe(false);
     expect(promotionState(database, run.id)).toEqual(promotedState);
+    expect(
+      database
+        .prepare(
+          "SELECT record_id, change_kind, snapshot FROM sync_activity_changes",
+        )
+        .all(),
+    ).toEqual(journal);
   });
 
   it("does not promote anything with stale settings or unfinished detail work", async () => {
@@ -1195,7 +1220,7 @@ describe("durable e-invoice sync runs", () => {
         now: "2026-08-12T03:00:00.000Z",
       }),
     ).resolves.toBe(true);
-    expect(batchStatementCounts).toEqual([5]);
+    expect(batchStatementCounts).toEqual([7]);
     expect(
       database.prepare("SELECT COUNT(*) AS count FROM invoices").get(),
     ).toEqual({ count: 120 });
