@@ -153,6 +153,26 @@ describe("HNCB connector parser", () => {
     });
   });
 
+  it("recognizes a masked card number separated from its last four digits", () => {
+    const billHtml = `
+      <table>
+        <tr><td>帳單年月：</td><td>2026/08</td><td>信用額度：</td><td>70,000</td></tr>
+        <tr><td>信用卡號碼：</td><td>************ 8103</td></tr>
+        <tr><td>1</td><td>08/10</td><td>08/12</td><td>分隔標記測試</td><td>TW</td><td>TWD</td><td></td><td>150</td></tr>
+      </table>
+    `;
+
+    const result = parseHncbData(
+      { billsHtml: [billHtml] },
+      new Date("2026-08-18T00:00:00.000Z"),
+    );
+
+    expect(result.bankAccounts[0]?.sourceId).toBe("credit:hncb:8103");
+    expect(result.bankTransactions[0]?.sourceId).toBe(
+      "hncb:card:tx:v2:8103:2026-08-10:150:1",
+    );
+  });
+
   it("rolls transaction years back when a bill spans new year", () => {
     const billHtml = `
       <table>
