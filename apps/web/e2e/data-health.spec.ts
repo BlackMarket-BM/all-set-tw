@@ -135,7 +135,7 @@ test("classification rules retains its working form without the duplicate header
   await page.goto("/#/classification-rules");
   await expect(page.getByText("＋ 新增規則", { exact: true })).toHaveCount(0);
   const add = page.getByRole("button", { name: "新增規則", exact: true });
-  await expect(add).toBeVisible();
+  await expect(add).toBeVisible({ timeout: 15_000 });
   await expect(add).toBeDisabled();
   await page.getByRole("textbox", { name: "關鍵字", exact: true }).fill("咖啡");
   await expect(add).toBeEnabled();

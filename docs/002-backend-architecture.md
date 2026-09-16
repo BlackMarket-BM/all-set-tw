@@ -624,6 +624,31 @@ Connector 不得直接寫入金融資料表。
 - D1 migration。
 - 對應測試。
 
+## 排程同步活動明細
+
+總覽的「最近一次排程同步」沿用預設排程報告。展開各資料來源後才載入本次新增活動、
+已入帳與補上發票的明細；一般手動同步及自訂排程沒有獨立報告。
+
+- `sync_activity_runs` 在取得同步鎖後登記 run ID 與固定批次。手動完整同步在開始時
+  固定可補救報告；只有補救 CAS 成功才發佈明細，不會混入後來完成的新批次。
+- `activity-capture.ts` 與 staging promotion 共用原生 D1 batch，在寫入前辨識新增紀錄
+  及既有未配對授權，於 lifecycle reconciliation 後保存已入帳關係與標準化快照。
+  不以 `updated_at` 判斷內容變化；沒有變化的授權候選在同一 transaction 移除。
+- 電子發票 durable promotion 使用相同 settings-version guard 保存新發票快照；
+  集保使用既有 promotion 與鎖的 run ID。結果發佈與來源結果更新共用 CAS transaction。
+- `activity-detail-service.ts` 在報告結案及手動補救後，以完整同日候選與既有活動配對
+  規則建立展示快照。交易與發票在來源明細中合併，同批新增資料與活動筆數可不同；
+  已配對授權與已入帳交易只呈現一次。跨來源列仍各自說明各來源的變動。
+- 快照不含 raw payload／憑證。名稱、金額與配對展示在明細完成後不受後續同步影響。
+  明細整理失敗不將成功的金融同步標成失敗；scheduler 下次 invocation 會重試未完成報告。
+  投影寫入在同一 batch 檢查 materialized 狀態，較晚完成的重試不會向已凍結快照補入資料。
+- `GET /api/sync-reports/:batchId/activities` 一次回傳該報告所有來源的完整明細。
+  後端以各來源 `recoveredAt ?? completedAt` 固定版本，避免稍後補救混入已完成報告。
+  只有完整 materialized 明細可見；舊報告回傳 legacy，尚未整理完成回傳 pending，
+  不存在的報告回傳 404。報告 30 天清理會級聯清除明細。
+
+新增資料筆數保留現有定義；此版不追蹤任意欄位修改歷史，也不新增活動頁同步排序。
+
 ## 新增一般功能
 
 新增 feature 時：

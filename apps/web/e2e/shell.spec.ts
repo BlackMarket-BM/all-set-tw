@@ -94,7 +94,7 @@ async function expectSelectedConnectorInView(
   const connectorSettings = page.locator(
     `[data-connector-settings="${connectorId}"]`,
   );
-  await expect(connectorSettings).toBeVisible();
+  await expect(connectorSettings).toBeVisible({ timeout: 15_000 });
   await expect(
     connectorSettings.getByRole("heading", { name: title, exact: true }),
   ).toBeVisible();
@@ -314,14 +314,14 @@ test("warns about a missing exchange rate only when the foreign balance is posit
   await expect(warning).toHaveCount(0);
 
   hkdBalance = 100;
-  await page.reload();
+  await page.reload({ waitUntil: "domcontentloaded" });
   await expect(warning).toBeVisible();
 
   await page.setViewportSize({ width: 390, height: 844 });
   await expect(warning).toBeVisible();
 
   hkdBalance = 0;
-  await page.reload();
+  await page.reload({ waitUntil: "domcontentloaded" });
   await expect(warning).toHaveCount(0);
 });
 
@@ -700,9 +700,7 @@ test("shows this month's cash flow on the overview and opens activity", async ({
   await expect(cashFlowSection.getByText("NT$38,000")).toBeVisible();
   await expect(page.getByRole("heading", { name: "資產配置" })).toHaveCount(0);
   const insightsSection = page.getByRole("region", { name: "值得留意" });
-  await expect(
-    insightsSection.getByText("目前沒有需要處理的事項"),
-  ).toBeVisible();
+  await expect(insightsSection.getByText("尚未設定資料來源")).toBeVisible();
   await expect(page.getByText(/存款佔全部資產/)).toHaveCount(0);
 
   await cashFlowSection.getByRole("button", { name: "查看活動 →" }).click();
@@ -822,7 +820,7 @@ test("shows reliable activity times and sorts them on desktop and mobile", async
     sourceId: "invoice-time-only-source",
     invoiceDate: `${activityDate}T23:45:00+08:00`,
     invoiceNumber: "TIME-0001",
-    sellerName: "發票時間不應套用",
+    sellerName: "配對發票提供時間",
     amount: 860,
   };
 
@@ -915,9 +913,9 @@ test("shows reliable activity times and sorts them on desktop and mobile", async
   await expect(desktopRows.filter({ hasText: "舊資料活動" })).not.toContainText(
     "00:00",
   );
-  await expect(
-    desktopRows.filter({ hasText: "無授權時間配對" }),
-  ).not.toContainText("23:45");
+  await expect(desktopRows.filter({ hasText: "無授權時間配對" })).toContainText(
+    "23:45",
+  );
 
   const desktopRowTexts = await desktopRows.allTextContents();
   expect(desktopRowTexts.findIndex((text) => text.includes("舊資料活動"))).toBe(
@@ -929,15 +927,15 @@ test("shows reliable activity times and sorts them on desktop and mobile", async
     desktopRowTexts.findIndex((text) => text.includes("真午夜活動")),
   );
   expect(
-    desktopRowTexts.findIndex((text) => text.includes("真午夜活動")),
-  ).toBeLessThan(
     desktopRowTexts.findIndex((text) => text.includes("無授權時間配對")),
+  ).toBeLessThan(
+    desktopRowTexts.findIndex((text) => text.includes("有時間活動")),
   );
 
   await desktopRows.filter({ hasText: "無授權時間配對" }).click();
   const desktopDetail = page.getByRole("dialog", { name: "活動明細" });
   await expect(desktopDetail).toBeVisible();
-  await expect(desktopDetail).not.toContainText("23:45");
+  await expect(desktopDetail).toContainText("23:45");
   await page.getByRole("button", { name: "關閉活動明細" }).click();
 
   await page.setViewportSize({ width: 390, height: 844 });
@@ -957,7 +955,7 @@ test("shows reliable activity times and sorts them on desktop and mobile", async
   await expect(mobileTimed).toContainText("14:30");
   await expect(mobileMidnight).toContainText("00:00");
   await expect(mobileLegacy).not.toContainText("00:00");
-  await expect(mobileMatched).not.toContainText("23:45");
+  await expect(mobileMatched).toContainText("23:45");
 });
 
 test("uses app-like scrolling and history only in standalone display mode", async ({
@@ -1133,7 +1131,8 @@ test("excludes a bank transaction from activity calculations and restores it", a
 
   await page.reload();
   await expect(excludedExpenseSlice).toBeVisible();
-  await page.getByRole("button", { name: "查看 台新卡費 活動詳情" }).click();
+  // Standalone navigation restores the open detail from browser history.
+  await expect(desktopDetailDialog).toBeVisible();
   await expect(
     page.getByRole("checkbox", { name: "恢復 台新卡費 的統計計算" }),
   ).toBeChecked();

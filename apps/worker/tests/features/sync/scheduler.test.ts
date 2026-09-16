@@ -5,6 +5,7 @@ import type { Env } from "../../../src/platform/env";
 
 const mocks = vi.hoisted(() => ({
   acquireSyncJobLock: vi.fn(),
+  beginActivityRun: vi.fn(),
   cancelQueuedEinvoiceSyncRun: vi.fn(),
   cancelQueuedTdccSyncRun: vi.fn(),
   claimCompletedDefaultScheduleBatch: vi.fn(),
@@ -36,6 +37,10 @@ vi.mock("../../../src/features/sync/einvoice-sync-service", () => ({
 vi.mock("../../../src/features/sync/tdcc-sync-service", () => ({
   cancelQueuedTdccSyncRun: mocks.cancelQueuedTdccSyncRun,
   startTdccSyncRun: mocks.startTdccSyncRun,
+}));
+
+vi.mock("../../../src/features/sync/activity-detail-repository", () => ({
+  beginActivityRun: mocks.beginActivityRun,
 }));
 
 vi.mock("@taiwan-fin-hub/db", () => ({
@@ -247,6 +252,7 @@ describe("scheduled sync rounds", () => {
       expect.anything(),
       {
         batchId: "default:new-round",
+        runId: expect.any(String),
         jobId: job.id,
         notification: { connectorId: "esun", status: "success" },
         newRecords: {

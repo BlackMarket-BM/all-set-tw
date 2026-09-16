@@ -1,4 +1,8 @@
 import {
+  captureStagedActivityBefore,
+  captureStagedActivityAfter,
+} from "./activity-capture";
+import {
   createDrizzle,
   sanitizeDatabaseError,
   syncWriteStaging,
@@ -402,8 +406,19 @@ export async function promoteStagedSyncWrite(
   const batchResults = await db.batch([
     ...(input.beforePromoteStatements ?? []),
     ...newRecordCountStatements.map(({ statement }) => statement),
+    ...captureStagedActivityBefore(
+      db,
+      input.runId,
+      Object.keys(NEW_RECORD_ENTITIES)
+        .filter((entityType) => entityTypes.has(entityType as SyncEntityType))
+        .map((entityType) => ({
+          entityType,
+          ...ENTITY_CONFIG[entityType as SyncEntityType],
+        })),
+    ),
     ...promotionStatements,
     ...(input.afterPromoteStatements ?? []),
+    ...captureStagedActivityAfter(db, input.runId),
     ...(input.finalizeStatements ?? []),
     db
       .prepare("DELETE FROM sync_write_staging WHERE run_id = ?")

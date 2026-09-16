@@ -449,6 +449,7 @@
     </Card>
 
     <LatestSyncReportCard
+      {api}
       report={$latestSyncReport.data}
       loading={$latestSyncReport.isPending}
     />

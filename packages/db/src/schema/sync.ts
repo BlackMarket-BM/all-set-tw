@@ -431,3 +431,53 @@ export const tdccSyncRunItems = sqliteTable(
     ),
   ],
 );
+
+export const syncActivityRuns = sqliteTable(
+  "sync_activity_runs",
+  {
+    id: text("id").primaryKey().notNull(),
+    batchId: text("batch_id")
+      .notNull()
+      .references(() => scheduledSyncBatches.id, { onDelete: "cascade" }),
+    connectorId: text("connector_id").notNull(),
+    createdAt: text("created_at").notNull(),
+    capturedAt: text("captured_at"),
+    published: integer("published")
+      .notNull()
+      .default(sql`0`),
+    materialized: integer("materialized")
+      .notNull()
+      .default(sql`0`),
+  },
+  (table) => [
+    index("idx_sync_activity_runs_batch").on(table.batchId, table.connectorId),
+  ],
+);
+
+export const syncActivityChanges = sqliteTable(
+  "sync_activity_changes",
+  {
+    runId: text("run_id")
+      .notNull()
+      .references(() => syncActivityRuns.id, { onDelete: "cascade" }),
+    entityType: text("entity_type").notNull(),
+    recordId: text("record_id").notNull(),
+    changeKind: text("change_kind").notNull(),
+    snapshot: text("snapshot").notNull(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.runId, table.entityType, table.recordId] }),
+  ],
+);
+
+export const syncActivityDetails = sqliteTable(
+  "sync_activity_details",
+  {
+    runId: text("run_id")
+      .notNull()
+      .references(() => syncActivityRuns.id, { onDelete: "cascade" }),
+    activityId: text("activity_id").notNull(),
+    snapshot: text("snapshot").notNull(),
+  },
+  (table) => [primaryKey({ columns: [table.runId, table.activityId] })],
+);

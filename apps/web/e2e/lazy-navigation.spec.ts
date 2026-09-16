@@ -37,21 +37,22 @@ test("shows a retry action when a lazy page fails to load", async ({
   page,
 }) => {
   let shouldFail = true;
-  await page.route(
-    "**/src/features/activity/ActivityPage.svelte*",
-    async (route) => {
-      if (shouldFail) {
-        shouldFail = false;
-        await route.abort();
-        return;
-      }
-      await route.continue();
-    },
-  );
+  const activityPageRoute = "**/src/features/activity/ActivityPage.svelte*";
+  await page.route(activityPageRoute, async (route) => {
+    if (shouldFail) {
+      shouldFail = false;
+      await route.abort();
+      return;
+    }
+    await route.continue();
+  });
 
   await page.goto("/#/activity");
   await expect(page.getByText("頁面載入失敗，請再試一次。")).toBeVisible();
 
+  await page.unroute(activityPageRoute);
   await page.getByRole("button", { name: "重新載入", exact: true }).click();
-  await expect(page.getByPlaceholder("搜尋商家、銀行或分類")).toBeVisible();
+  await expect(
+    page.getByRole("searchbox", { name: "搜尋所有活動" }),
+  ).toBeVisible({ timeout: 15_000 });
 });

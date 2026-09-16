@@ -8,10 +8,10 @@
 
 ## 目錄
 
-- Tables：28
-- Explicit indexes：43
+- Tables：31
+- Explicit indexes：44
 - Other objects：0
-- Migrations：44
+- Migrations：45
 
 ## Tables
 
@@ -40,6 +40,9 @@
 | [`push_subscriptions`](#push_subscriptions) | 瀏覽器 Web Push 裝置訂閱資料。 | 6 | 0 | 0 |
 | [`scheduled_sync_batch_results`](#scheduled_sync_batch_results) | 預設排程同步批次中各工作的完成結果。 | 9 | 1 | 0 |
 | [`scheduled_sync_batches`](#scheduled_sync_batches) | 追蹤預設排程中需彙總推播的一輪同步工作。 | 12 | 0 | 2 |
+| [`sync_activity_changes`](#sync_activity_changes) | 與金融資料 promotion 同一 transaction 保存的新增紀錄與入帳事件。 | 5 | 1 | 0 |
+| [`sync_activity_details`](#sync_activity_details) | 報告完成時沿用活動配對規則產生的活動展示快照。 | 3 | 1 | 0 |
+| [`sync_activity_runs`](#sync_activity_runs) | 同步執行與排程報告的明確關聯，涵蓋原始同步及成功的手動補救。 | 7 | 1 | 1 |
 | [`sync_jobs`](#sync_jobs) | 每個連接器與同步範圍的排程、鎖定狀態與最近執行結果。 | 19 | 0 | 1 |
 | [`sync_schedule_settings`](#sync_schedule_settings) | 所有使用 inherit 模式之同步工作的全域預設排程。 | 6 | 0 | 0 |
 | [`sync_write_staging`](#sync_write_staging) | 同步流程寫入正式資料表前的暫存資料。 | 5 | 0 | 1 |
@@ -1208,6 +1211,121 @@ CREATE TABLE "scheduled_sync_batches" (
 , completed_at TEXT, is_baseline INTEGER NOT NULL DEFAULT 0, assets_before_twd INTEGER, credit_card_debt_before_twd INTEGER, missing_currencies_before TEXT NOT NULL DEFAULT '[]', assets_after_twd INTEGER, credit_card_debt_after_twd INTEGER, missing_currencies_after TEXT NOT NULL DEFAULT '[]')
 ```
 
+### `sync_activity_changes`
+
+> 用途：與金融資料 promotion 同一 transaction 保存的新增紀錄與入帳事件。
+> 注意：不保存 raw payload 或憑證。pending 僅為 transaction 內的候選，沒有變動即移除；紀錄 ID 不設金融資料 FK，保留歷史快照。
+
+#### Columns
+
+| 順序 | 欄位 | 意義 | SQLite type | 可為 NULL | 預設值 | PK 順序 | Generated |
+| ---: | --- | --- | --- | :---: | --- | ---: | --- |
+| 1 | `run_id` | 所屬同步執行。 | TEXT | NO | — | 1 | — |
+| 2 | `entity_type` | invoice、bank_transaction 或 investment_transaction。 | TEXT | NO | — | 2 | — |
+| 3 | `record_id` | 同步時的原始紀錄識別碼。 | TEXT | NO | — | 3 | — |
+| 4 | `change_kind` | added 新增、posted 入帳；pending 是 transaction 內的暫時候選。 | TEXT | NO | — | — | — |
+| 5 | `snapshot` | 標準化活動資料的 JSON 快照，不含 raw payload。 | TEXT | NO | — | — | — |
+
+#### Foreign keys
+
+| 欄位 | 參照表 | 參照欄位 | ON UPDATE | ON DELETE |
+| --- | --- | --- | --- | --- |
+| `run_id` | `sync_activity_runs` | `id` | NO ACTION | CASCADE |
+
+#### Indexes
+
+—
+
+#### DDL
+
+```sql
+CREATE TABLE sync_activity_changes (
+  run_id TEXT NOT NULL REFERENCES sync_activity_runs(id) ON DELETE CASCADE,
+  entity_type TEXT NOT NULL,
+  record_id TEXT NOT NULL,
+  change_kind TEXT NOT NULL,
+  snapshot TEXT NOT NULL,
+  PRIMARY KEY (run_id, entity_type, record_id)
+)
+```
+
+### `sync_activity_details`
+
+> 用途：報告完成時沿用活動配對規則產生的活動展示快照。
+> 注意：同一次執行內同一活動只保存一次；發票配對既有交易時顯示補上發票。後續同步不改寫已完成的快照。
+
+#### Columns
+
+| 順序 | 欄位 | 意義 | SQLite type | 可為 NULL | 預設值 | PK 順序 | Generated |
+| ---: | --- | --- | --- | :---: | --- | ---: | --- |
+| 1 | `run_id` | 所屬同步執行，隨報告級聯刪除。 | TEXT | NO | — | 1 | — |
+| 2 | `activity_id` | 來源種類及活動 ID，作為執行內的去重鍵。 | TEXT | NO | — | 2 | — |
+| 3 | `snapshot` | 供 API 回傳的日期、名稱、原幣金額、變動種類、發票關係與同步時間 JSON 快照。 | TEXT | NO | — | — | — |
+
+#### Foreign keys
+
+| 欄位 | 參照表 | 參照欄位 | ON UPDATE | ON DELETE |
+| --- | --- | --- | --- | --- |
+| `run_id` | `sync_activity_runs` | `id` | NO ACTION | CASCADE |
+
+#### Indexes
+
+—
+
+#### DDL
+
+```sql
+CREATE TABLE sync_activity_details (
+  run_id TEXT NOT NULL REFERENCES sync_activity_runs(id) ON DELETE CASCADE,
+  activity_id TEXT NOT NULL,
+  snapshot TEXT NOT NULL,
+  PRIMARY KEY (run_id, activity_id)
+)
+```
+
+### `sync_activity_runs`
+
+> 用途：同步執行與排程報告的明確關聯，涵蓋原始同步及成功的手動補救。
+> 注意：published 在結果 CAS 同批次更新；materialized 為 1 才可讀取完整明細。隨報告刪除而級聯清除。一般手動與自訂排程不建立此報告。
+
+#### Columns
+
+| 順序 | 欄位 | 意義 | SQLite type | 可為 NULL | 預設值 | PK 順序 | Generated |
+| ---: | --- | --- | --- | :---: | --- | ---: | --- |
+| 1 | `id` | 同步鎖所屬的執行 ID；持久化同步使用 durable run ID。 | TEXT | NO | — | 1 | — |
+| 2 | `batch_id` | 固定的排程報告批次，不能依時間推測歸屬。 | TEXT | NO | — | — | — |
+| 3 | `connector_id` | 此次同步的來源。 | TEXT | NO | — | — | — |
+| 4 | `created_at` | 登記此次執行的時間。 | TEXT | NO | — | — | — |
+| 5 | `captured_at` | 金融資料與變動快照成功寫入的時間。 | TEXT | YES | — | — | — |
+| 6 | `published` | 來源結果或手動補救成功登記後為 1。 | INTEGER | NO | 0 | — | — |
+| 7 | `materialized` | 活動配對與展示快照完整保存後為 1。 | INTEGER | NO | 0 | — | — |
+
+#### Foreign keys
+
+| 欄位 | 參照表 | 參照欄位 | ON UPDATE | ON DELETE |
+| --- | --- | --- | --- | --- |
+| `batch_id` | `scheduled_sync_batches` | `id` | NO ACTION | CASCADE |
+
+#### Indexes
+
+| Index | Unique | Partial | 欄位 | 定義 |
+| --- | :---: | :---: | --- | --- |
+| `idx_sync_activity_runs_batch` | 否 | 否 | `batch_id`, `connector_id` | `CREATE INDEX idx_sync_activity_runs_batch ON sync_activity_runs(batch_id, connector_id)` |
+
+#### DDL
+
+```sql
+CREATE TABLE sync_activity_runs (
+  id TEXT PRIMARY KEY NOT NULL,
+  batch_id TEXT NOT NULL REFERENCES scheduled_sync_batches(id) ON DELETE CASCADE,
+  connector_id TEXT NOT NULL,
+  created_at TEXT NOT NULL,
+  captured_at TEXT,
+  published INTEGER NOT NULL DEFAULT 0,
+  materialized INTEGER NOT NULL DEFAULT 0
+)
+```
+
 ### `sync_jobs`
 
 > 用途：每個連接器與同步範圍的排程、鎖定狀態與最近執行結果。
@@ -1560,6 +1678,7 @@ Migration 是 schema 演進的 source of truth；若要了解某欄位的變更�
 - [`0044_text_primary_keys_not_null.sql`](../packages/db/migrations/0044_text_primary_keys_not_null.sql)
 - [`0045_preference_foreign_keys.sql`](../packages/db/migrations/0045_preference_foreign_keys.sql)
 - [`0046_transaction_self_foreign_keys.sql`](../packages/db/migrations/0046_transaction_self_foreign_keys.sql)
+- [`0047_sync_activity_details.sql`](../packages/db/migrations/0047_sync_activity_details.sql)
 
 ## 程式碼導覽
 
