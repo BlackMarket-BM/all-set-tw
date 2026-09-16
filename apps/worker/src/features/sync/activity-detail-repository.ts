@@ -6,10 +6,12 @@ import {
   scheduledSyncBatchResults,
   scheduledSyncBatches,
 } from "@taiwan-fin-hub/db";
-import { and, asc, desc, eq, isNotNull, lte, sql } from "drizzle-orm";
-import type {
-  SyncActivityDetailsPage,
-  SyncActivityDetail,
+import { and, asc, desc, eq, isNotNull, sql } from "drizzle-orm";
+import {
+  isConnectorId,
+  type ConnectorId,
+  type SyncActivityDetailsPage,
+  type SyncActivityDetail,
 } from "@taiwan-fin-hub/core";
 
 export async function beginActivityRun(
@@ -93,16 +95,17 @@ export async function saveActivityDetails(
   );
   await db.batch(statements);
 }
-export async function getActivityDetailsPage(
+export async function getReportActivityDetails(
   db: D1Database,
   batchId: string,
-  connectorId: string,
-  offset: number,
-  asOf?: string,
-): Promise<SyncActivityDetailsPage | null> {
+): Promise<Partial<Record<ConnectorId, SyncActivityDetailsPage>> | null> {
   const orm = createDrizzle(db);
-  const source = await orm
-    .select({ batchId: scheduledSyncBatchResults.batchId })
+  const sources = await orm
+    .select({
+      connectorId: scheduledSyncBatchResults.connectorId,
+      completedAt: scheduledSyncBatchResults.completedAt,
+      recoveredAt: scheduledSyncBatchResults.recoveredAt,
+    })
     .from(scheduledSyncBatchResults)
     .innerJoin(
       scheduledSyncBatches,
@@ -111,21 +114,18 @@ export async function getActivityDetailsPage(
     .where(
       and(
         eq(scheduledSyncBatchResults.batchId, batchId),
-        eq(scheduledSyncBatchResults.connectorId, connectorId),
         isNotNull(scheduledSyncBatches.completedAt),
       ),
     )
-    .get();
-  if (!source) return null;
-  const runs = (await listActivityReportRuns(db, batchId)).filter(
-    (r) => r.connectorId === connectorId && (!asOf || r.createdAt <= asOf),
-  );
-  if (!runs.length)
-    return { availability: "legacy", items: [], nextOffset: null };
-  if (runs.some((r) => !r.materialized))
-    return { availability: "pending", items: [], nextOffset: null };
+    .all();
+  if (!sources.length) return null;
+  const runs = await listActivityReportRuns(db, batchId);
   const rows = await orm
-    .select({ snapshot: syncActivityDetails.snapshot })
+    .select({
+      connectorId: syncActivityRuns.connectorId,
+      createdAt: syncActivityRuns.createdAt,
+      snapshot: syncActivityDetails.snapshot,
+    })
     .from(syncActivityDetails)
     .innerJoin(
       syncActivityRuns,
@@ -134,10 +134,8 @@ export async function getActivityDetailsPage(
     .where(
       and(
         eq(syncActivityRuns.batchId, batchId),
-        eq(syncActivityRuns.connectorId, connectorId),
         eq(syncActivityRuns.published, 1),
         eq(syncActivityRuns.materialized, 1),
-        asOf ? lte(syncActivityRuns.createdAt, asOf) : undefined,
       ),
     )
     .orderBy(
@@ -146,16 +144,36 @@ export async function getActivityDetailsPage(
       desc(sql`json_extract(${syncActivityDetails.snapshot}, '$.date')`),
       asc(syncActivityDetails.activityId),
     )
-    .limit(31)
-    .offset(offset)
     .all();
-  return {
-    availability: "available",
-    items: rows
-      .slice(0, 30)
-      .map((r) => JSON.parse(r.snapshot) as SyncActivityDetail),
-    nextOffset: rows.length > 30 ? offset + 30 : null,
-  };
+  const result: Partial<Record<ConnectorId, SyncActivityDetailsPage>> = {};
+  for (const source of sources) {
+    if (!isConnectorId(source.connectorId)) continue;
+    const asOf = source.recoveredAt ?? source.completedAt ?? undefined;
+    const sourceRuns = runs.filter(
+      (run) =>
+        run.connectorId === source.connectorId &&
+        (!asOf || run.createdAt <= asOf),
+    );
+    if (!sourceRuns.length) {
+      result[source.connectorId] = { availability: "legacy", items: [] };
+      continue;
+    }
+    if (sourceRuns.some((run) => !run.materialized)) {
+      result[source.connectorId] = { availability: "pending", items: [] };
+      continue;
+    }
+    result[source.connectorId] = {
+      availability: "available",
+      items: rows
+        .filter(
+          (row) =>
+            row.connectorId === source.connectorId &&
+            (!asOf || row.createdAt <= asOf),
+        )
+        .map((row) => JSON.parse(row.snapshot) as SyncActivityDetail),
+    };
+  }
+  return result;
 }
 
 export async function findActivityRunBatchId(db: D1Database, runId: string) {

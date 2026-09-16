@@ -1,9 +1,8 @@
 import type {
   ScheduledSyncReport,
-  SyncActivityDetailsPage,
-  ConnectorId,
+  SyncReportActivities,
 } from "@taiwan-fin-hub/core";
-import { queryOptions, infiniteQueryOptions } from "@tanstack/svelte-query";
+import { queryOptions } from "@tanstack/svelte-query";
 import type { ApiClient } from "@/shared/api/client";
 import { queryKeys } from "@/shared/api/query-keys";
 
@@ -16,21 +15,16 @@ export const latestSyncReportQuery = (getApi: ApiProvider) =>
       getApi().get<ScheduledSyncReport | null>("/api/sync-reports/latest"),
   });
 
-export const syncActivityDetailsQuery = (
+export const syncReportActivitiesQuery = (
   getApi: ApiProvider,
   batchId: string,
-  connectorId: ConnectorId,
-  revision: string,
   enabled: boolean,
 ) =>
-  infiniteQueryOptions({
-    queryKey: ["sync-reports", batchId, connectorId, "activities", revision],
-    initialPageParam: 0,
+  queryOptions({
+    queryKey: queryKeys.syncReportActivities(batchId),
     enabled,
-    queryFn: ({ pageParam }) =>
-      getApi().get<SyncActivityDetailsPage>(
-        `/api/sync-reports/${encodeURIComponent(batchId)}/sources/${connectorId}/activities?offset=${pageParam}&asOf=${encodeURIComponent(revision)}`,
+    queryFn: () =>
+      getApi().get<SyncReportActivities>(
+        `/api/sync-reports/${encodeURIComponent(batchId)}/activities`,
       ),
-    getNextPageParam: (page: SyncActivityDetailsPage) =>
-      page.nextOffset ?? undefined,
   });

@@ -6,6 +6,7 @@ for (const width of [1440, 390]) {
   }) => {
     await page.setViewportSize({ width, height: 1000 });
     let requests = 0;
+    let activitiesPath = "";
     await page.route("**/api/**", async (route) => {
       const path = new URL(route.request().url()).pathname;
       if (!path.startsWith("/api/")) return route.continue();
@@ -49,34 +50,38 @@ for (const width of [1440, 390]) {
           missingCurrencies: [],
         };
       else if (path.endsWith("/activities")) {
+        activitiesPath = path;
         requests++;
         json = {
-          availability: "available",
-          nextOffset: null,
-          items: [
-            {
-              id: "card:t1",
-              date: "2026-09-01",
-              title: "全聯福利中心台中北屯店",
-              subtitle: "永豐銀行 · DAWAY 末四碼 1234",
-              amount: -358,
-              currency: "TWD",
-              status: "pending",
-              syncedAt: "2026-09-15T06:05:00Z",
-              changes: ["added"],
+          sources: {
+            sinopac: {
+              availability: "available",
+              items: [
+                {
+                  id: "card:t1",
+                  date: "2026-09-01",
+                  title: "全聯福利中心台中北屯店",
+                  subtitle: "永豐銀行 · DAWAY 末四碼 1234",
+                  amount: -358,
+                  currency: "TWD",
+                  status: "pending",
+                  syncedAt: "2026-09-15T06:05:00Z",
+                  changes: ["added"],
+                },
+                {
+                  id: "card:t2",
+                  date: "2026-08-29",
+                  title: "台灣高鐵",
+                  subtitle: "永豐銀行 · DAWAY 末四碼 1234",
+                  amount: -700,
+                  currency: "TWD",
+                  status: "posted",
+                  syncedAt: "2026-09-15T06:05:00Z",
+                  changes: ["posted", "invoice_linked"],
+                },
+              ],
             },
-            {
-              id: "card:t2",
-              date: "2026-08-29",
-              title: "台灣高鐵",
-              subtitle: "永豐銀行 · DAWAY 末四碼 1234",
-              amount: -700,
-              currency: "TWD",
-              status: "posted",
-              syncedAt: "2026-09-15T06:05:00Z",
-              changes: ["posted", "invoice_linked"],
-            },
-          ],
+          },
         };
       }
       await route.fulfill({ json });
@@ -87,11 +92,12 @@ for (const width of [1440, 390]) {
     ).toBeVisible();
     expect(requests).toBe(0);
     await page.getByText("查看各資料來源", { exact: true }).click();
-    expect(requests).toBe(0);
-    await page.getByRole("button", { name: "查看本次活動" }).click();
     await expect(page.getByText("全聯福利中心台中北屯店")).toBeVisible();
     await expect(page.getByText("補上發票", { exact: true })).toBeVisible();
     expect(requests).toBe(1);
+    expect(activitiesPath).toBe(
+      "/api/sync-reports/default%3Areport/activities",
+    );
     expect(
       await page.evaluate(
         () => document.documentElement.scrollWidth > innerWidth,
@@ -104,7 +110,7 @@ for (const width of [1440, 390]) {
       path: `/tmp/sync-details-${width}.png`,
       fullPage: true,
     });
-    await page.getByRole("button", { name: "收合本次活動" }).click();
+    await page.getByText("收合各資料來源", { exact: true }).click();
     await expect(page.getByText("全聯福利中心台中北屯店")).not.toBeVisible();
   });
 }

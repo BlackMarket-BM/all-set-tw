@@ -636,5 +636,7 @@ export interface SyncActivityDetail {
 export interface SyncActivityDetailsPage {
   availability: "available" | "legacy" | "pending";
   items: SyncActivityDetail[];
-  nextOffset: number | null;
+}
+export interface SyncReportActivities {
+  sources: Partial<Record<ConnectorId, SyncActivityDetailsPage>>;
 }

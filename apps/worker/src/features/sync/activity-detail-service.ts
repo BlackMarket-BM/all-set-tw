@@ -26,7 +26,7 @@ import {
   listActivityChanges,
   saveActivityDetails,
 } from "./activity-detail-repository";
-export { getActivityDetailsPage } from "./activity-detail-repository";
+export { getReportActivityDetails } from "./activity-detail-repository";
 
 type Change = Awaited<ReturnType<typeof listActivityChanges>>[number];
 type BankSnapshot = ActivityTransaction & {

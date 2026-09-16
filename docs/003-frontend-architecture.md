@@ -70,9 +70,9 @@ npm run verify:web
 
 ## 總覽同步明細
 
-`LatestSyncReportCard` 顯示「最近一次排程同步」，各資料來源可展開本次活動。
-`SyncActivityDetails` 使用 `data/sync-reports` 的 infinite query，只有展開才載入，
-query key 包含固定報告 ID、來源與補救版本；每次載入 30 筆並支援重試與載入更多。
+`LatestSyncReportCard` 顯示「最近一次排程同步」，展開「查看各資料來源」後直接列出各來源本次活動。
+`SyncActivityDetails` 展示該次同步的活動名稱、標記與原幣金額；來源區塊展開時以一次
+`GET /api/sync-reports/:batchId/activities` 載入全部來源明細並支援重試。
 明細展示新增活動、已入帳、補上發票及原幣金額，沿用全域隱藏金額設定。
 日期是活動發生日期，同步時間另列；已配對發票合併顯示，活動筆數不等同新增資料筆數。
 舊報告沒有明細時明確說明，不顯示成「沒有變動」。

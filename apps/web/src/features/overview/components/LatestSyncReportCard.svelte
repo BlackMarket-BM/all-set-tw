@@ -1,11 +1,14 @@
 <script lang="ts">
   import type { ApiClient } from "@/shared/api/client";
+  import { toStore } from "svelte/store";
+  import { createQuery } from "@tanstack/svelte-query";
   import SyncActivityDetails from "./SyncActivityDetails.svelte";
   import { CircleCheckBig, RefreshCw, TriangleAlert } from "@lucide/svelte";
   import {
     connectorCatalog,
     type ScheduledSyncReport,
   } from "@taiwan-fin-hub/core";
+  import { syncReportActivitiesQuery } from "@/data/sync-reports/queries";
   import Card from "@/shared/ui/Card.svelte";
   import CardContent from "@/shared/ui/CardContent.svelte";
   import { formatCurrency, formatDateTime } from "@/shared/format/financial";
@@ -79,6 +82,16 @@
           },
         ]
       : [],
+  );
+  let sourcesOpen = $state(false);
+  const activities = createQuery(
+    toStore(() =>
+      syncReportActivitiesQuery(
+        () => api,
+        report?.id ?? "",
+        Boolean(report?.id) && sourcesOpen,
+      ),
+    ),
   );
 
   function formatFinancialChange(value: number) {
@@ -225,7 +238,10 @@
       {/if}
 
       {#if report.sources.length > 0}
-        <details class="group border-t border-border/70 pt-4">
+        <details
+          bind:open={sourcesOpen}
+          class="group border-t border-border/70 pt-4"
+        >
           <summary
             class="cursor-pointer list-none text-xs font-semibold text-steel marker:content-none"
           >
@@ -253,10 +269,10 @@
                   </span>
                 </div>
                 <SyncActivityDetails
-                  {api}
-                  batchId={report.id}
-                  connectorId={source.connectorId}
-                  revision={source.recoveredAt ?? source.completedAt}
+                  page={$activities.data?.sources[source.connectorId]}
+                  loading={$activities.isPending}
+                  failed={$activities.isError}
+                  onRetry={() => $activities.refetch()}
                 />
               </div>
             {/each}
