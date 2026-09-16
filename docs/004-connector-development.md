@@ -173,6 +173,10 @@ session 重連、瀏覽器建立後的操作與銀行登入不在此重試範圍
 
 ## 路由、排程與 challenge
 
+新光信用卡 `RemainingDue` 回傳 `NA` 時視為欠款金額未提供，仍同步帳戶與歷史帳單，
+但不建立本次信用卡餘額快照、不推算已繳金額或繳清狀態。既有快照保留原時間，
+不得將 `NA` 當成零；其他無法辨識的欠款文字仍使同步失敗。
+
 - 一般同步使用 `runConnectorSync`，不要在 route 或 scheduler 新增 connector switch。電子發票與集保的手動／排程入口使用各自的 durable-run service 啟動 Queue 流程。
 - 所有 scope 必須先宣告在 `connectorCatalog`；排程工作目前固定使用 `all`。
 - 同一 connector 的所有 scope 共用 canonical lock。

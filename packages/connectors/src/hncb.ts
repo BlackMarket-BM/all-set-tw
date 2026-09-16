@@ -375,8 +375,6 @@ function parseSingleBillHtml(
   const dueDateMatch = text.match(
     /繳款截止日[：:\s]*([0-9]{4}[\/.-][0-9]{1,2}[\/.-][0-9]{1,2})/,
   );
-  const cardTitleMatch = text.match(/([^\s]+?\*{4,}\d{4})/);
-
   let billingPeriod = "";
   if (periodMatch) {
     if (periodMatch[2]) {
@@ -399,11 +397,7 @@ function parseSingleBillHtml(
     ? normalizeDateStr(dueDateMatch[1] ?? "")
     : undefined;
 
-  let cardLast4 = "main";
-  if (cardTitleMatch) {
-    const l4Match = cardTitleMatch[1]?.match(/(\d{4})$/);
-    if (l4Match) cardLast4 = l4Match[1] ?? "main";
-  }
+  const cardLast4 = extractCardLast4(text) ?? "main";
 
   const anchor = billingPeriod
     ? {
@@ -421,10 +415,9 @@ function parseSingleBillHtml(
     const rowHtml = rowMatch[1] ?? "";
     const rowText = stripTags(rowHtml);
 
-    const cardHeader = rowText.match(/([^\s]+?\*{4,}\d{4})/);
-    if (cardHeader) {
-      const matchL4 = cardHeader[1]?.match(/(\d{4})$/);
-      if (matchL4) currentCardLast4 = matchL4[1] ?? currentCardLast4;
+    const cardHeaderLast4 = extractCardLast4(rowText);
+    if (cardHeaderLast4) {
+      currentCardLast4 = cardHeaderLast4;
       continue;
     }
 
@@ -474,6 +467,10 @@ function parseSingleBillHtml(
     cardLast4,
     transactions,
   };
+}
+
+function extractCardLast4(text: string): string | undefined {
+  return text.match(/\*{4,}\s*(\d{4})\b/)?.[1];
 }
 
 function parseCreditTxRow(cells: string[]) {

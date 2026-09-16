@@ -135,6 +135,29 @@ function reconcileSingleCardSummaryAccountStatements(
          )`,
     ),
     db.prepare(
+      `DELETE FROM bank_balance_snapshots
+       WHERE account_id = ${mainAccountId}
+         AND ${hasSinglePhysicalCard}
+         AND EXISTS (
+           SELECT 1 FROM bank_balance_snapshots current
+           WHERE current.account_id = ${physicalAccountId}
+             AND current.source_id = bank_balance_snapshots.source_id
+         )`,
+    ),
+    ...mergeLegacyTransactionStatements(
+      db,
+      `
+      SELECT shadow.id AS old_id, canonical.id AS new_id
+      FROM bank_transactions shadow
+      JOIN bank_transactions canonical
+        ON canonical.connector_id = shadow.connector_id
+       AND canonical.account_id = ${physicalAccountId}
+       AND canonical.source_id = shadow.source_id
+      WHERE shadow.connector_id = '${connectorId}'
+        AND shadow.account_id = ${mainAccountId}
+        AND ${hasSinglePhysicalCard}`,
+    ),
+    db.prepare(
       `UPDATE credit_card_bills
        SET account_id = ${physicalAccountId}
        WHERE account_id = ${mainAccountId}
@@ -150,12 +173,30 @@ function reconcileSingleCardSummaryAccountStatements(
       `UPDATE bank_transactions
        SET account_id = ${physicalAccountId}
        WHERE account_id = ${mainAccountId}
-         AND ${hasSinglePhysicalCard}`,
+         AND ${hasSinglePhysicalCard}
+         AND NOT EXISTS (
+           SELECT 1 FROM bank_transactions current
+           WHERE current.connector_id = bank_transactions.connector_id
+             AND current.account_id = ${physicalAccountId}
+             AND current.source_id = bank_transactions.source_id
+         )`,
     ),
     db.prepare(
       `DELETE FROM bank_accounts
        WHERE id = ${mainAccountId}
-         AND ${hasSinglePhysicalCard}`,
+         AND ${hasSinglePhysicalCard}
+         AND NOT EXISTS (
+           SELECT 1 FROM bank_balance_snapshots
+           WHERE account_id = bank_accounts.id
+         )
+         AND NOT EXISTS (
+           SELECT 1 FROM bank_transactions
+           WHERE account_id = bank_accounts.id
+         )
+         AND NOT EXISTS (
+           SELECT 1 FROM credit_card_bills
+           WHERE account_id = bank_accounts.id
+         )`,
     ),
   ];
 }

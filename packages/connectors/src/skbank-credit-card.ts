@@ -66,15 +66,23 @@ export function parseSkbankCreditCardData(
   const paymentDueDate = normalizeDate(summary.PaymentDueDate);
   const remainingDue = remainingDueValue(remainingDueData.RemainingDue);
   const statementMonth = numberValue(summary.StatementMonth);
-  if (creditLimit == null) {
+  // The provider leaves summary fields blank when there is no current
+  // statement. Keep strict validation for non-empty, unparseable values.
+  if (creditLimit == null && !isMissingOptionalValue(summary.CurrentCredit)) {
     warnSchemaMismatch("summary", "CurrentCredit", summary.CurrentCredit);
     throw new SkbankProtocolError();
   }
-  if (availableCredit == null) {
+  if (
+    availableCredit == null &&
+    !isMissingOptionalValue(summary.AvailableCredit)
+  ) {
     warnSchemaMismatch("summary", "AvailableCredit", summary.AvailableCredit);
     throw new SkbankProtocolError();
   }
-  if (statementBalance == null) {
+  if (
+    statementBalance == null &&
+    !isMissingOptionalValue(summary.CurrentStatementBalance)
+  ) {
     warnSchemaMismatch(
       "summary",
       "CurrentStatementBalance",
@@ -82,7 +90,10 @@ export function parseSkbankCreditCardData(
     );
     throw new SkbankProtocolError();
   }
-  if (minimumPayment == null) {
+  if (
+    minimumPayment == null &&
+    !isMissingOptionalValue(summary.MinimumPaymentDue)
+  ) {
     warnSchemaMismatch(
       "summary",
       "MinimumPaymentDue",
@@ -90,7 +101,10 @@ export function parseSkbankCreditCardData(
     );
     throw new SkbankProtocolError();
   }
-  if (remainingDue == null) {
+  if (
+    remainingDue == null &&
+    stringValue(remainingDueData.RemainingDue).trim() !== "NA"
+  ) {
     warnSchemaMismatch(
       "remainingDue",
       "RemainingDue",
@@ -99,10 +113,11 @@ export function parseSkbankCreditCardData(
     throw new SkbankProtocolError();
   }
   if (
-    statementMonth == null ||
-    !Number.isInteger(statementMonth) ||
-    statementMonth < 1 ||
-    statementMonth > 12
+    statementMonth == null
+      ? !isMissingOptionalValue(summary.StatementMonth)
+      : !Number.isInteger(statementMonth) ||
+        statementMonth < 1 ||
+        statementMonth > 12
   ) {
     warnSchemaMismatch("summary", "StatementMonth", summary.StatementMonth);
     throw new SkbankProtocolError();
@@ -112,10 +127,17 @@ export function parseSkbankCreditCardData(
       right.billingPeriod.localeCompare(left.billingPeriod),
     )
     .slice(0, BANK_SYNC_MONTHS);
-  const currentBillIndex = bills.findIndex(
-    ({ billingPeriod }) => Number(billingPeriod.slice(5, 7)) === statementMonth,
-  );
+  // Without a statement month, do not guess which historical bill is current.
+  const currentBillIndex =
+    statementMonth == null
+      ? -1
+      : bills.findIndex(
+          ({ billingPeriod }) =>
+            Number(billingPeriod.slice(5, 7)) === statementMonth,
+        );
   const currentPeriod = bills[currentBillIndex]?.billingPeriod;
+  const resolvedStatementBalance =
+    statementBalance ?? bills[currentBillIndex]?.statementAmount;
   const statementClosingDate = currentPeriod
     ? dateFromPeriodAndDay(currentPeriod, summary.ClosingDate)
     : undefined;
@@ -134,36 +156,41 @@ export function parseSkbankCreditCardData(
       raw: { cards },
     },
   ];
-  const bankBalanceSnapshots: SkbankCreditCardData["bankBalanceSnapshots"] = [
-    {
-      accountId: CREDIT_ACCOUNT_SOURCE_ID,
-      sourceId: `${CREDIT_ACCOUNT_SOURCE_ID}:${now.toISOString()}`,
-      balance: remainingDue === 0 ? 0 : -Math.abs(remainingDue),
-      availableBalance: availableCredit,
-      statementBalance,
-      paymentDueDate,
-      statementClosingDate,
-      noPaymentNeeded: remainingDue == null ? undefined : remainingDue === 0,
-      currency: "TWD",
-      asOfAt: now.toISOString(),
-      raw: {
-        currentStatementBalance: statementBalance,
-        remainingDue,
-        availableCredit,
-      },
-    },
-  ];
+  const bankBalanceSnapshots: SkbankCreditCardData["bankBalanceSnapshots"] =
+    remainingDue == null
+      ? []
+      : [
+          {
+            accountId: CREDIT_ACCOUNT_SOURCE_ID,
+            sourceId: `${CREDIT_ACCOUNT_SOURCE_ID}:${now.toISOString()}`,
+            balance: remainingDue === 0 ? 0 : -Math.abs(remainingDue),
+            availableBalance: availableCredit,
+            statementBalance: resolvedStatementBalance,
+            paymentDueDate,
+            statementClosingDate,
+            noPaymentNeeded:
+              remainingDue == null ? undefined : remainingDue === 0,
+            currency: "TWD",
+            asOfAt: now.toISOString(),
+            raw: {
+              currentStatementBalance: statementBalance,
+              remainingDue,
+              availableCredit,
+            },
+          },
+        ];
   const creditCardBills = bills.map((bill, index) => {
     const isCurrent = index === currentBillIndex;
     const isInferredPaid =
       remainingDue === 0 &&
       currentPeriod != null &&
       bill.billingPeriod < currentPeriod;
-    const paidAmount = isCurrent
-      ? Math.max(bill.statementAmount - Math.max(remainingDue, 0), 0)
-      : isInferredPaid
-        ? bill.statementAmount
-        : undefined;
+    const paidAmount =
+      isCurrent && remainingDue != null
+        ? Math.max(bill.statementAmount - Math.max(remainingDue, 0), 0)
+        : isInferredPaid
+          ? bill.statementAmount
+          : undefined;
     return {
       accountId: CREDIT_ACCOUNT_SOURCE_ID,
       sourceId: `${CREDIT_ACCOUNT_SOURCE_ID}:bill:${bill.billingPeriod}`,
@@ -171,7 +198,10 @@ export function parseSkbankCreditCardData(
       statementAmount: bill.statementAmount,
       minimumPayment: isCurrent ? minimumPayment : undefined,
       paidAmount,
-      isPaid: isCurrent ? remainingDue <= 0 : isInferredPaid || undefined,
+      isPaid:
+        isCurrent && remainingDue != null
+          ? remainingDue <= 0
+          : isInferredPaid || undefined,
       paymentDueDate: isCurrent ? paymentDueDate : undefined,
       statementClosingDate: isCurrent ? statementClosingDate : undefined,
       currency: "TWD",
@@ -261,6 +291,10 @@ function numberValue(value: unknown) {
   if (!normalized) return undefined;
   const parsed = Number(normalized);
   return Number.isFinite(parsed) ? parsed : undefined;
+}
+
+function isMissingOptionalValue(value: unknown) {
+  return value == null || (typeof value === "string" && value.trim() === "");
 }
 
 function remainingDueValue(value: unknown) {

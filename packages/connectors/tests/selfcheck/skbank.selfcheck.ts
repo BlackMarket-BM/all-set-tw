@@ -257,7 +257,107 @@ assert.equal(
   "inferred_from_current_zero_remaining_due",
 );
 
+const emptyStatementBalanceCreditCard = parseSkbankCreditCardData(
+  {
+    assetsOverview: assetsOverviewPayload,
+    summary: {
+      Data: {
+        ...creditCardSummaryPayload.Data,
+        CurrentStatementBalance: "",
+        MinimumPaymentDue: "",
+      },
+    },
+    cards: creditCardsPayload,
+    billingHistory: billingHistoryPayload,
+    remainingDue: remainingDuePayload,
+  },
+  now,
+);
+assert.equal(
+  emptyStatementBalanceCreditCard.bankBalanceSnapshots[0]?.statementBalance,
+  3200,
+);
+assert.equal(
+  emptyStatementBalanceCreditCard.bankAccounts[0]?.creditLimit,
+  250000,
+);
+assert.equal(
+  emptyStatementBalanceCreditCard.bankBalanceSnapshots[0]?.availableBalance,
+  130000,
+);
+assert.equal(
+  emptyStatementBalanceCreditCard.creditCardBills[1]?.minimumPayment,
+  undefined,
+);
+assert.equal(
+  (
+    emptyStatementBalanceCreditCard.bankBalanceSnapshots[0]?.raw as Record<
+      string,
+      unknown
+    >
+  )?.currentStatementBalance,
+  undefined,
+);
+
+const missingOptionalSummaryFieldsCreditCard = parseSkbankCreditCardData(
+  {
+    assetsOverview: assetsOverviewPayload,
+    summary: {
+      Data: {
+        ...creditCardSummaryPayload.Data,
+        CurrentCredit: "",
+        AvailableCredit: "",
+        CurrentStatementBalance: "",
+        MinimumPaymentDue: "",
+        PaymentDueDate: "",
+        ClosingDate: "",
+        StatementMonth: "",
+      },
+    },
+    cards: creditCardsPayload,
+    billingHistory: billingHistoryPayload,
+    remainingDue: remainingDuePayload,
+  },
+  now,
+);
+assert.equal(
+  missingOptionalSummaryFieldsCreditCard.bankAccounts[0]?.creditLimit,
+  undefined,
+);
+assert.equal(
+  missingOptionalSummaryFieldsCreditCard.bankBalanceSnapshots[0]
+    ?.availableBalance,
+  undefined,
+);
+assert.equal(
+  missingOptionalSummaryFieldsCreditCard.bankBalanceSnapshots[0]
+    ?.statementBalance,
+  undefined,
+);
+assert.equal(
+  missingOptionalSummaryFieldsCreditCard.creditCardBills[0]?.isPaid,
+  undefined,
+);
+
 const originalCreditCardWarn = console.warn;
+const unavailableDebt = parseSkbankCreditCardData(
+  {
+    assetsOverview: assetsOverviewPayload,
+    summary: creditCardSummaryPayload,
+    cards: creditCardsPayload,
+    billingHistory: billingHistoryPayload,
+    remainingDue: { Data: { RemainingDue: "NA" } },
+  },
+  now,
+);
+assert.equal(unavailableDebt.bankAccounts.length, 1);
+assert.equal(unavailableDebt.bankBalanceSnapshots.length, 0);
+assert.equal(unavailableDebt.creditCardBills.length, 3);
+assert.ok(
+  unavailableDebt.creditCardBills.every(
+    (bill) => bill.paidAmount === undefined && bill.isPaid === undefined,
+  ),
+);
 const creditCardWarnings: unknown[] = [];
 console.warn = (...values: unknown[]) => {
   creditCardWarnings.push(...values);
