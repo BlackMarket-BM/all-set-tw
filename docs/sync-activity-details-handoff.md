@@ -5,7 +5,7 @@
 ## 目前狀態與任務
 
 - 使用者希望在總覽的同步報告中，看出每個銀行／資料來源這次究竟同步了哪些活動，而不只有新增筆數。
-- 功能已實作，尚待完成驗證與 review；請直接接續此分支，不要重新實作。
+- 功能已實作；本次接手已完成一致性 review 並補上修正，最新驗證結果見文末。
 - 原實作 commit 為 `01d7751`；已 rebase 到當次取得的最新 `origin/main`（`13a08f0`，第一銀行多裝置登入與信用卡同步修正），rebase 後實作 commit 為 `88a7af6`，沒有衝突。
 - 本次交接不包含部署、套用正式 D1 migration 或合併至 main。
 - 修改前先讀根目錄 `AGENTS.md` 及 `docs/002-backend-architecture.md`、`docs/003-frontend-architecture.md`；涉及 connector 時另讀 `docs/004-connector-development.md`。
@@ -88,7 +88,7 @@ for name in tdcc einvoice einvoice-v2 taishin ctbc skbank obank firstbank hncb; 
 done
 ```
 
-## Codex 接手順序
+## 原交接的 Codex 接手順序（最新結果見文末）
 
 1. Fetch 並 checkout `feat/sync-activity-details`，確認實作與此交接文件都存在。
 2. 優先在標準瀏覽器環境重跑上述四項 E2E；使用乾淨 main checkout 跑相同測試，判定是否為本分支 regression，再修正相關問題。不要僅憑先前推測修改無關行為。
@@ -100,3 +100,40 @@ done
 可直接交給下一個 Codex 的任務：
 
 > 請接續 `feat/sync-activity-details`，先讀 `AGENTS.md` 與 `docs/sync-activity-details-handoff.md`。總覽同步活動明細已完成主要實作，請優先釐清交接列出的四項 E2E 失敗並與 main 比對，review 同步 journal 與補救／分頁的一致性，完成必要修正和專案要求的驗證，再回報結果。請保留現有功能範圍與提交，不要重新實作，也不要部署正式環境。
+
+## 2026-09-16 接手修正與驗證
+
+### 一致性修正
+
+- 手動補救改用共用 `publishActivityRunStatement`，緊接來源補救 CAS 並保留在同一 D1 batch。原實作只比對 `recovered_at`，兩次補救在同一毫秒競爭時，CAS 落敗的 run 也可能被發布。
+- 投影插入時在同一 transaction 檢查 `materialized = 0`。已完成投影不再接受較晚重試新增的活動，避免快照及分頁內容改變。
+- 新增兩個 D1 integration cases：同毫秒補救 CAS 競爭、較晚投影不得改動已凍結明細。活動明細整合測試共 10 cases 通過。
+- 已檢查 capture 與金融資料原子提交、durable promotion 重播 guard、啟動時的手動補救 batch 綁定、跨來源發票配對及 `asOf` 分頁；保留既有功能範圍。
+- 本次未修改 schema；後端架構文件補充投影凍結保護。
+
+### 四項 E2E 基準比對與修正
+
+使用標準 Playwright Chromium，在本分支與獨立、乾淨的 `origin/main` checkout（`13a08f0`）執行相同四項測試，兩邊曾在相同位置失敗；本次已更新測試預期與等待方式：
+
+| 測試                          | 已確認的失敗原因                                                                        |
+| ----------------------------- | --------------------------------------------------------------------------------------- |
+| lazy page retry               | 改用目前的「搜尋所有活動」searchbox，並在重試前解除故障模組的 route interception。      |
+| overview cash flow            | fixture 未設定資料來源時，改驗證實際顯示的「尚未設定資料來源」。                        |
+| reliable activity times       | 依現行規則驗證配對發票優先提供含時區時間，並確認 23:45 顯示及排序。                     |
+| exclude / restore calculation | reload 後沿用 standalone history 還原已開啟的活動明細，不再次點擊被 dialog 遮罩的列表。 |
+
+另外將兩個受 lazy compilation 影響的 E2E 可見性斷言調整為 15 秒等待；產品程式行為未因此變更。
+
+### 本次完整驗證
+
+- 環境：Node 22.23.1、標準 Playwright Chromium；無臨時 Chromium executable 或 tsx 替代入口。
+- 根目錄 `npm run format:check`、`npm run typecheck` 通過。
+- `VITEST_MAX_WORKERS=2 npm run test:backend`：Worker 64 檔、579 tests 中 578 通過；`notification-batch-repository.test.ts` 的 terminal-state summary case 超過預設 5 秒，因此該命令在 Worker 階段停止。
+- 對上述檔案以 `npx vitest run --root apps/worker tests/features/sync/notification-batch-repository.test.ts --maxWorkers=1` 重跑，保留原本 5 秒期限，13 tests 全部通過。沒有修改測試或放寬 timeout。
+- 接著從 repo root 執行原 backend script 的其餘步驟：DB 6 檔／19 tests、九組 connector selfchecks、deploy 16 tests 全部通過。這次標準 tsx CLI 正常執行。
+- `VITEST_MAX_WORKERS=2 npm run test:unit`：25 檔／121 tests 通過。
+- 根目錄 `npm run build` 全部 workspaces 通過；最後再次執行根目錄格式檢查及 `git diff --check` 通過。
+- `npm run test:e2e`：46 tests 全部通過；包含新增的桌面／手機同步明細，以及已修正的 lazy page、總覽收支、活動時間與排除計算流程。
+- 最新取得的 `origin/main` 為 `13a08f0`，migration 最後為 0046，與本分支 0047 沒有撞號。
+
+本分支可送功能 review。本次修正保留為未提交變更，未建立 commit／PR，也未部署或套用正式 migration。

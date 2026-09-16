@@ -1,8 +1,17 @@
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import {
+  afterAll,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  vi,
+} from "vitest";
 import { createTestD1 } from "../../../../../packages/db/testing/d1";
 import {
   beginActivityRun,
   getActivityDetailsPage,
+  saveActivityDetails,
 } from "../../../src/features/sync/activity-detail-repository";
 import { materializeActivityReport } from "../../../src/features/sync/activity-detail-service";
 import {
@@ -255,6 +264,64 @@ describe("同步活動明細：隔離 D1", () => {
     expect(
       (await getActivityDetailsPage(db, "batch", "sinopac", 0))?.items,
     ).toHaveLength(1);
+  });
+  it("補救 CAS 落敗時，即使完成時間相同也不發布該 run", async () => {
+    await db
+      .prepare(
+        `UPDATE scheduled_sync_batch_results SET status = 'failed', completed_at = ? WHERE batch_id = 'batch' AND connector_id = 'sinopac'`,
+      )
+      .bind(now)
+      .run();
+    await start("loser");
+    const originalBatch = db.batch.bind(db);
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-09-16T06:00:00.000Z"));
+    const racingDb = {
+      prepare: db.prepare.bind(db),
+      batch: async (statements: D1PreparedStatement[]) => {
+        // Another recovery wins after selection, in the same millisecond.
+        await db
+          .prepare(
+            `UPDATE scheduled_sync_batch_results SET status = 'success', recovered_at = ? WHERE batch_id = 'batch' AND connector_id = 'sinopac'`,
+          )
+          .bind(new Date().toISOString())
+          .run();
+        return originalBatch(statements);
+      },
+    } as D1Database;
+    try {
+      expect(
+        await recoverLatestScheduledSyncSource(racingDb, {
+          connectorId: "sinopac",
+          batchId: "batch",
+          runId: "loser",
+          newRecords: counts,
+        }),
+      ).toBe(false);
+      expect(
+        await db
+          .prepare(
+            "SELECT published FROM sync_activity_runs WHERE id = 'loser'",
+          )
+          .first(),
+      ).toEqual({ published: 0 });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+  it("較晚完成的投影不得改動已凍結的明細", async () => {
+    await start("run");
+    await persistStagedSyncWrite(db, { records: [transaction("t1")] });
+    await finish("run");
+    await materializeActivityReport(db, "batch");
+    const before = await getActivityDetailsPage(db, "batch", "sinopac", 0);
+    await saveActivityDetails(db, "run", [
+      { ...before!.items[0]!, title: "不同投影" },
+      { ...before!.items[0]!, id: "bank:extra" },
+    ]);
+    expect(await getActivityDetailsPage(db, "batch", "sinopac", 0)).toEqual(
+      before,
+    );
   });
   it("分頁固定批次與來源，舊報告不推算明細，API 驗證參數", async () => {
     expect(

@@ -641,6 +641,7 @@ Connector 不得直接寫入金融資料表。
   已配對授權與已入帳交易只呈現一次。跨來源列仍各自說明各來源的變動。
 - 快照不含 raw payload／憑證。名稱、金額與配對展示在明細完成後不受後續同步影響。
   明細整理失敗不將成功的金融同步標成失敗；scheduler 下次 invocation 會重試未完成報告。
+  投影寫入在同一 batch 檢查 materialized 狀態，較晚完成的重試不會向已凍結快照補入資料。
 - `GET /api/sync-reports/:batchId/sources/:connectorId/activities?offset=0` 以固定批次、來源
   及每頁 30 筆回傳，附 `nextOffset`；前端傳入 `asOf` 固定來源完成／補救版本，避免翻頁時混入新補救資料。只有完整 materialized 明細可見；舊報告回傳 legacy，
   尚未整理完成回傳 pending，不存在的報告／來源回傳 404。報告 30 天清理會級聯清除明細。

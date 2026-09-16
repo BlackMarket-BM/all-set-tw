@@ -80,9 +80,10 @@ export async function saveActivityDetails(
       db
         .prepare(
           `INSERT OR IGNORE INTO sync_activity_details (run_id, activity_id, snapshot)
-      SELECT ?, json_extract(value, '$.id'), value FROM json_each(?)`,
+      SELECT ?, json_extract(value, '$.id'), value FROM json_each(?)
+      WHERE EXISTS (SELECT 1 FROM sync_activity_runs WHERE id = ? AND materialized = 0)`,
         )
-        .bind(runId, JSON.stringify(items.slice(offset, offset + 100))),
+        .bind(runId, JSON.stringify(items.slice(offset, offset + 100)), runId),
     );
   }
   statements.push(

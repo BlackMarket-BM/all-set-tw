@@ -1,3 +1,4 @@
+import { publishActivityRunStatement } from "./activity-detail-repository";
 import { safelyMaterializeActivityReport } from "./activity-detail-service";
 import {
   createDrizzle,
@@ -152,6 +153,16 @@ export async function recoverLatestScheduledSyncSource(
         latest.batchId,
         latest.jobId,
       ),
+    ...(input.runId
+      ? [
+          publishActivityRunStatement(
+            db,
+            input.runId,
+            latest.batchId,
+            input.connectorId,
+          ),
+        ]
+      : []),
     db
       .prepare(
         `UPDATE scheduled_sync_batches
@@ -175,22 +186,6 @@ export async function recoverLatestScheduledSyncSource(
         latest.jobId,
         recoveredAt,
       ),
-    ...(input.runId
-      ? [
-          db
-            .prepare(
-              `UPDATE sync_activity_runs SET published = 1 WHERE id = ? AND batch_id = ?
-      AND EXISTS (SELECT 1 FROM scheduled_sync_batch_results WHERE batch_id = ? AND connector_id = ? AND recovered_at = ?)`,
-            )
-            .bind(
-              input.runId,
-              latest.batchId,
-              latest.batchId,
-              input.connectorId,
-              recoveredAt,
-            ),
-        ]
-      : []),
   ]);
   if (results[0]?.meta.changes === 1)
     await safelyMaterializeActivityReport(db, latest.batchId);
