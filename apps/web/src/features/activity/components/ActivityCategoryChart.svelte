@@ -1,8 +1,5 @@
 <script lang="ts">
   import { PieChart } from "layerchart";
-  import Card from "@/shared/ui/Card.svelte";
-  import CardContent from "@/shared/ui/CardContent.svelte";
-  import CardHeader from "@/shared/ui/CardHeader.svelte";
   import {
     ChartContainer,
     ChartTooltip,
@@ -50,37 +47,35 @@
   />
 {/snippet}
 
-<Card
-  class={`min-w-0 overflow-hidden ${flow === "income" ? "border-moss/20" : "border-coral/20"}`}
->
-  <CardHeader class="flex-row items-start justify-between gap-3 pb-2">
+<section class="min-w-0">
+  <div class="flex items-start justify-between gap-3">
     <div class="min-w-0">
       <h3
-        class={`font-semibold ${flow === "income" ? "text-moss" : "text-coral"}`}
+        class={`text-base font-semibold ${flow === "income" ? "text-moss" : "text-coral"}`}
       >
         {title}
       </h3>
       <p class="mt-1 text-xs text-ink/45">點選分類查看該月活動</p>
     </div>
     <p
-      class={`shrink-0 text-base font-bold tabular-nums sm:text-lg ${flow === "income" ? "text-moss" : "text-coral"}`}
+      class={`shrink-0 text-lg font-medium tracking-tight tabular-nums ${flow === "income" ? "text-moss" : "text-coral"}`}
     >
       {#if dataIncomplete}—{:else}{flow === "income"
           ? "+"
           : "−"}{formatCurrency(total)}{/if}
     </p>
-  </CardHeader>
-  <CardContent class="pt-2">
+  </div>
+  <div class="pt-4">
     {#if dataIncomplete}
       <div
-        class="rounded-xl bg-amber-50 p-6 text-center text-sm text-amber-900"
+        class="rounded-xl border border-amber-200/80 bg-amber-50 p-6 text-center text-sm text-amber-900"
       >
         活動資料尚未完整載入，分類比例暫不計算。
       </div>
     {:else if slices.length === 0}
-      <div class="rounded-xl bg-paper p-6 text-center text-sm text-ink/45">
+      <p class="py-8 text-center text-sm text-ink/45">
         此月份沒有{flow === "income" ? "收入" : "支出"}活動
-      </div>
+      </p>
     {:else}
       <div
         class="grid min-w-0 gap-4 sm:grid-cols-[150px_minmax(0,1fr)] sm:items-center"
@@ -106,13 +101,13 @@
             type="button"
             aria-label={flowSelected ? "顯示全部活動" : `查看${flowLabel}活動`}
             aria-pressed={flowSelected}
-            class={`absolute left-1/2 top-1/2 z-10 flex size-20 -translate-x-1/2 -translate-y-1/2 flex-col items-center justify-center rounded-full transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-steel focus-visible:ring-offset-2 ${flowSelected ? "bg-steel/10 ring-2 ring-steel/25" : "hover:bg-paper"}`}
+            class={`absolute left-1/2 top-1/2 z-10 flex size-20 -translate-x-1/2 -translate-y-1/2 flex-col items-center justify-center rounded-full transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-steel focus-visible:ring-offset-2 ${flowSelected ? "bg-steel/10 ring-2 ring-steel/25" : "hover:bg-ink/3"}`}
             onclick={onSelectFlow}
           >
             <span class="text-[11px] font-semibold text-steel">
               {flowSelected ? "顯示全部" : `查看${flowLabel}`}
             </span>
-            <span class="mt-0.5 text-sm font-bold tabular-nums"
+            <span class="mt-0.5 text-sm font-medium tabular-nums"
               >{formatCompactTwd(total)}</span
             >
           </button>
@@ -121,7 +116,7 @@
           {#each slices as slice (slice.category)}
             <button
               aria-pressed={selectedCategory === slice.category}
-              class={`grid min-h-11 min-w-0 grid-cols-[12px_minmax(0,1fr)_auto] items-center gap-2 rounded-lg px-2 text-left transition ${selectedCategory === slice.category ? "bg-steel/10 ring-1 ring-steel/20" : "hover:bg-paper"}`}
+              class={`grid min-h-11 min-w-0 grid-cols-[12px_minmax(0,1fr)_auto] items-center gap-2 rounded-sm px-1 text-left transition ${selectedCategory === slice.category ? "bg-ink/4 shadow-[inset_3px_0_0_var(--color-steel)]" : "hover:bg-ink/3"}`}
               onclick={() => onSelect(slice.category)}
             >
               <span
@@ -132,7 +127,7 @@
                 >{slice.category}</span
               >
               <span class="text-right">
-                <span class="block text-xs font-bold tabular-nums"
+                <span class="block text-xs font-medium tabular-nums"
                   >{slice.percentage.toFixed(1)}%</span
                 >
                 <span class="block text-[10px] text-ink/40 tabular-nums"
@@ -144,5 +139,5 @@
         </div>
       </div>
     {/if}
-  </CardContent>
-</Card>
+  </div>
+</section>

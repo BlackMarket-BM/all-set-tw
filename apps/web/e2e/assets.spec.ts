@@ -195,7 +195,7 @@ test("uses the desktop asset ledger without losing detail workflows", async ({
   await expect(page.getByText("買進 · 2026/8/1")).toBeVisible();
 
   await ledger.getByRole("button", { name: /^其他資產/ }).click();
-  await expect(page.getByText("自住房屋", { exact: true })).toBeVisible();
+  await expect(ledger.getByRole("button", { name: /^自住房屋/ })).toBeVisible();
   const manageHistory = ledger.getByRole("button", {
     name: "管理估值歷史",
     exact: true,
@@ -230,7 +230,7 @@ test("keeps the mobile ledger readable and expandable", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/#/assets");
 
-  const taishin = page.getByRole("button", { name: /^台 台新銀行/ });
+  const taishin = page.getByRole("button", { name: /^台新銀行/ });
   await expect(taishin).toHaveAttribute("aria-expanded", "false");
   const ledger = page
     .locator('section[aria-label="資產清冊"]')
@@ -239,10 +239,9 @@ test("keeps the mobile ledger readable and expandable", async ({ page }) => {
   await taishin.click();
   await expect(taishin).toHaveAttribute("aria-expanded", "true");
   await expect(ledger.getByText("薪轉戶", { exact: true })).toBeVisible();
-  await expect(
-    page.getByText("信用卡負債", { exact: true }).first(),
-  ).toBeVisible();
-  await ledger.getByRole("button", { name: /^其他資產/ }).click();
+  await expect(page.getByText(/已扣除 .+ 信用卡負債/)).toBeVisible();
+  await expect(ledger.getByText("元大台灣50")).toBeVisible();
+  await expect(ledger.getByRole("button", { name: /^自住房屋/ })).toBeVisible();
   await expect(
     ledger.getByRole("button", { name: "管理估值歷史", exact: true }),
   ).toBeHidden();
