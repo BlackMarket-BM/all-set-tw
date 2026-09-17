@@ -44,25 +44,23 @@
 
 <div class={compact ? "grid gap-3" : "flex min-h-full flex-col"}>
   {#if !compact}
-    <header class="border-b border-border px-5 py-4">
-      <p class="text-xs font-semibold text-muted-foreground">金融機構</p>
+    <header class="border-b border-ink/10 px-5 py-4">
+      <p class="text-xs font-medium text-ink/50">金融機構</p>
       <h2 class="mt-1 text-xl font-semibold tracking-tight">
         {group.institution}
       </h2>
-      <p class="mt-1 text-xs text-muted-foreground">
-        帳戶與信用卡依各自資料來源顯示
-      </p>
+      <p class="mt-1 text-xs text-ink/50">帳戶與信用卡依各自資料來源顯示</p>
     </header>
-    <div class="grid grid-cols-2 gap-2 border-b border-border p-4">
-      <div class="rounded-lg border border-border bg-paper p-3">
-        <p class="text-xs text-muted-foreground">銀行資產</p>
-        <p class="mt-1 text-lg font-bold tabular-nums text-steel">
+    <div class="grid grid-cols-2 gap-6 border-b border-ink/10 px-5 py-4">
+      <div>
+        <p class="text-xs text-ink/55">銀行資產</p>
+        <p class="mt-2 text-lg font-medium tabular-nums text-steel">
           {group.accounts.length ? formatCurrency(group.assetTotalTwd) : "—"}
         </p>
       </div>
-      <div class="rounded-lg border border-border bg-paper p-3">
-        <p class="text-xs text-muted-foreground">信用卡負債</p>
-        <p class="mt-1 text-lg font-bold tabular-nums text-coral">
+      <div>
+        <p class="text-xs text-ink/55">信用卡負債</p>
+        <p class="mt-2 text-lg font-medium tabular-nums text-coral">
           {group.hasUnknownCardBalance
             ? "資料不完整"
             : group.cards.length
@@ -73,9 +71,15 @@
     </div>
   {/if}
 
-  <section class={compact ? "" : "border-b border-border px-5 py-4"}>
+  <section class={compact ? "" : "border-b border-ink/10 px-5 py-4"}>
     <div class="flex items-center justify-between gap-3">
-      <h3 class="text-sm font-semibold">銀行帳戶</h3>
+      <h3
+        class={compact
+          ? "text-xs font-medium text-ink/50"
+          : "text-sm font-semibold"}
+      >
+        銀行帳戶
+      </h3>
       <span class="text-xs text-muted-foreground">
         {group.accounts.length} 個帳戶
       </span>
@@ -117,9 +121,15 @@
     {/if}
   </section>
 
-  <section class={compact ? "" : "border-b border-border px-5 py-4"}>
+  <section class={compact ? "" : "border-b border-ink/10 px-5 py-4"}>
     <div class="flex items-center justify-between gap-3">
-      <h3 class="text-sm font-semibold">信用卡帳戶</h3>
+      <h3
+        class={compact
+          ? "text-xs font-medium text-ink/50"
+          : "text-sm font-semibold"}
+      >
+        信用卡帳戶
+      </h3>
       <span class="text-xs text-muted-foreground">
         {group.cards.length} 張卡片
       </span>
@@ -156,9 +166,15 @@
   </section>
 
   {#if group.cards.length > 0}
-    <details class={compact ? "rounded-lg border border-border" : "m-4"}>
+    <details
+      class={compact
+        ? "border-t border-ink/8 pt-1"
+        : "mx-5 border-t border-ink/10"}
+    >
       <summary
-        class="flex min-h-11 cursor-pointer list-none items-center justify-between gap-3 rounded-lg border border-border bg-white px-3 text-sm font-semibold hover:bg-muted"
+        class={compact
+          ? "flex min-h-11 cursor-pointer items-center justify-between gap-3 text-xs font-medium text-ink/50"
+          : "flex min-h-11 cursor-pointer items-center justify-between gap-3 text-sm font-medium"}
       >
         查看信用卡帳單
         <span class="text-xs font-normal text-muted-foreground">

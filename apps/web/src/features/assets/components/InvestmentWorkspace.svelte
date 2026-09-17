@@ -37,27 +37,29 @@
 
 <div class={compact ? "grid gap-3" : "flex min-h-full flex-col"}>
   {#if !compact}
-    <header class="border-b border-border px-5 py-4">
-      <p class="text-xs font-semibold text-muted-foreground">投資</p>
+    <header class="border-b border-ink/10 px-5 py-4">
+      <p class="text-xs font-medium text-ink/50">投資</p>
       <h2 class="mt-1 text-xl font-semibold tracking-tight">投資組合</h2>
-      <p class="mt-1 text-xs text-muted-foreground">持倉與交易紀錄集中查看</p>
+      <p class="mt-1 text-xs text-ink/50">持倉與交易紀錄集中查看</p>
     </header>
-    <div class="grid grid-cols-2 gap-2 border-b border-border p-4">
-      <div class="rounded-lg border border-border bg-paper p-3">
-        <p class="text-xs text-muted-foreground">投資市值</p>
-        <p class="mt-1 text-lg font-bold tabular-nums text-steel">
+    <div class="grid grid-cols-2 gap-6 border-b border-ink/10 px-5 py-4">
+      <div>
+        <p class="text-xs text-ink/55">投資市值</p>
+        <p class="mt-2 text-lg font-medium tabular-nums text-steel">
           {formatCurrency(total)}
         </p>
       </div>
-      <div class="rounded-lg border border-border bg-paper p-3">
-        <p class="text-xs text-muted-foreground">持倉</p>
-        <p class="mt-1 text-lg font-bold tabular-nums">{positions.length} 筆</p>
+      <div>
+        <p class="text-xs text-ink/55">持倉</p>
+        <p class="mt-2 text-lg font-medium tabular-nums">
+          {positions.length} 筆
+        </p>
       </div>
     </div>
   {/if}
 
   <div
-    class="flex gap-1 border-b border-border px-4 pt-2"
+    class={`flex gap-1 border-b border-ink/8 pt-2 ${compact ? "" : "px-4"}`}
     role="tablist"
     aria-label="投資組合"
   >
@@ -98,7 +100,7 @@
                   {formatNumber(position.quantity ?? 0)} 單位
                 </p>
               </div>
-              <p class="text-right text-sm font-bold tabular-nums text-steel">
+              <p class="text-right text-sm font-medium tabular-nums text-steel">
                 {formatCurrency(
                   (position.marketValue ?? 0) + (position.cashBalance ?? 0),
                   position.currency,

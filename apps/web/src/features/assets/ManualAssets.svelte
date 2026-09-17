@@ -6,7 +6,7 @@
     createQuery,
     useQueryClient,
   } from "@tanstack/svelte-query";
-  import { Pencil, Plus, Trash2 } from "@lucide/svelte";
+  import { ChevronRight, Pencil, Plus, Trash2 } from "@lucide/svelte";
   import Card from "@/shared/ui/Card.svelte";
   import CardHeader from "@/shared/ui/CardHeader.svelte";
   import CardContent from "@/shared/ui/CardContent.svelte";
@@ -32,9 +32,11 @@
   let {
     api,
     variant = "page",
+    hideSummary = false,
   }: {
     api: ApiClient;
     variant?: "page" | "embedded";
+    hideSummary?: boolean;
   } = $props();
   const qc = useQueryClient();
   const assets = createQuery(manualAssetsQuery(() => api));
@@ -198,7 +200,7 @@
     returnFocus = null;
     void tick().then(() => target?.focus());
   }
-  function openAdd() {
+  export function openAdd() {
     rememberFocus();
     adding = true;
     editing = null;
@@ -298,77 +300,98 @@
 {#if $assets.isPending}
   <EmptyState title="載入其他資產中" body="正在讀取估值紀錄。" />
 {:else}
-  <div class={variant === "embedded" ? "grid gap-3" : "grid gap-5"}>
-    <div
-      class={`flex flex-wrap items-end justify-between gap-3 ${variant === "embedded" ? "px-4 pt-4" : ""}`}
-    >
-      <div>
-        <p class="text-sm text-ink/50">其他資產總額</p>
-        <p
-          class={`mt-1 font-bold tabular-nums ${variant === "embedded" ? "text-xl" : "text-3xl"}`}
-        >
-          {formatCurrency(total)}
-        </p>
-      </div>
-      <div class="flex flex-wrap gap-2">
-        {#if variant === "embedded"}
-          <Button
-            class="hidden md:inline-flex"
-            variant="secondary"
-            disabled={($assets.data ?? []).length === 0}
-            onclick={toggleHistoryManagement}
-          >
-            {expandedAssetId ? "收起估值歷史" : "管理估值歷史"}
-          </Button>
-        {/if}
-        <Button variant="primary" onclick={openAdd}
-          ><Plus class="size-4" />新增資產</Button
-        >
-      </div>
-    </div>
-    <Card class={variant === "embedded" ? "border-0 shadow-none" : ""}>
-      <CardHeader class={variant === "embedded" ? "px-4" : ""}
-        ><h2 class="text-lg font-semibold">
-          {variant === "embedded" ? "資產與估值" : "資產清單"}
-        </h2></CardHeader
+  <div
+    class={hideSummary
+      ? ""
+      : variant === "embedded"
+        ? "grid gap-3"
+        : "grid gap-5"}
+  >
+    {#if !hideSummary}
+      <div
+        class={`flex flex-wrap items-end justify-between gap-3 ${variant === "embedded" ? "px-4 pt-4" : ""}`}
       >
+        <div>
+          <p class="text-sm text-ink/50">其他資產總額</p>
+          <p
+            class={`mt-1 font-bold tabular-nums ${variant === "embedded" ? "text-xl" : "text-3xl"}`}
+          >
+            {formatCurrency(total)}
+          </p>
+        </div>
+        <div class="flex flex-wrap gap-2">
+          {#if variant === "embedded"}
+            <Button
+              class="hidden md:inline-flex"
+              variant="secondary"
+              disabled={($assets.data ?? []).length === 0}
+              onclick={toggleHistoryManagement}
+            >
+              {expandedAssetId ? "收起估值歷史" : "管理估值歷史"}
+            </Button>
+          {/if}
+          <Button variant="primary" onclick={openAdd}
+            ><Plus class="size-4" />新增資產</Button
+          >
+        </div>
+      </div>
+    {/if}
+    <Card
+      class={variant === "embedded"
+        ? "border-0 bg-transparent shadow-none"
+        : ""}
+    >
+      {#if !hideSummary}
+        <CardHeader class={variant === "embedded" ? "px-4" : ""}
+          ><h2 class="text-lg font-semibold">
+            {variant === "embedded" ? "資產與估值" : "資產清單"}
+          </h2></CardHeader
+        >
+      {/if}
       <CardContent class="p-0">
         <div class="divide-y divide-ink/8">
           {#if ($assets.data ?? []).length === 0}
             <p class="p-8 text-center text-sm text-ink/50">尚無其他資產。</p>
           {:else}
             {#each $assets.data ?? [] as asset (asset.id)}
-              <div class="px-5 py-4">
-                <div class="flex items-center justify-between gap-3">
+              <div class={hideSummary ? "" : "px-5 py-4"}>
+                <div class="flex items-center gap-1">
                   <button
-                    class="min-w-0 flex-1 text-left"
+                    class="grid min-h-[72px] min-w-0 flex-1 cursor-pointer grid-cols-[minmax(0,1fr)_auto_16px] items-center gap-3 py-2 text-left transition hover:bg-ink/3"
                     onclick={() => toggleHistory(asset.id)}
                     aria-expanded={expandedAssetId === asset.id}
+                    aria-label={`${asset.name}，估值歷史`}
                   >
-                    <p class="truncate font-semibold">{asset.name}</p>
-                    <p class="mt-1 text-xs text-ink/45">
-                      {categories[asset.category as keyof typeof categories] ??
-                        asset.category} · {asset.currency} · {asset.date
-                        ? formatDate(asset.date)
-                        : "尚未估值"}{asset.note ? ` · ${asset.note}` : ""}
-                    </p>
-                  </button>
-                  <div class="flex items-center gap-3">
-                    <p class="font-bold tabular-nums">
+                    <span class="min-w-0">
+                      <strong class="block truncate text-sm"
+                        >{asset.name}</strong
+                      >
+                      <small class="mt-1 block truncate text-xs text-ink/45">
+                        {categories[
+                          asset.category as keyof typeof categories
+                        ] ?? asset.category} · {asset.currency} · {asset.date
+                          ? formatDate(asset.date)
+                          : "尚未估值"}{asset.note ? ` · ${asset.note}` : ""}
+                      </small>
+                    </span>
+                    <strong class="text-sm font-medium tabular-nums">
                       {formatCurrency(asset.value ?? 0, asset.currency)}
-                    </p>
-                    <button
-                      class="rounded-sm p-1 text-ink/40 hover:text-steel"
-                      aria-label="編輯資產"
-                      onclick={() => startEdit(asset)}
-                      ><Pencil class="size-4" /></button
-                    ><button
-                      class="rounded-sm p-1 text-ink/40 hover:text-coral"
-                      aria-label="刪除資產"
-                      onclick={() => requestDeleteAsset(asset)}
-                      ><Trash2 class="size-4" /></button
-                    >
-                  </div>
+                    </strong>
+                    <ChevronRight
+                      class={`size-4 text-ink/40 transition ${expandedAssetId === asset.id ? "rotate-90" : ""}`}
+                    />
+                  </button>
+                  <button
+                    class="rounded-sm p-1 text-ink/40 hover:text-steel"
+                    aria-label="編輯資產"
+                    onclick={() => startEdit(asset)}
+                    ><Pencil class="size-4" /></button
+                  ><button
+                    class="rounded-sm p-1 text-ink/40 hover:text-coral"
+                    aria-label="刪除資產"
+                    onclick={() => requestDeleteAsset(asset)}
+                    ><Trash2 class="size-4" /></button
+                  >
                 </div>
                 {#if expandedAssetId === asset.id}
                   <div class="mt-4 rounded-lg bg-paper/70 p-3">

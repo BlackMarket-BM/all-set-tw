@@ -18,9 +18,6 @@
     ChevronRight,
     X,
   } from "@lucide/svelte";
-  import Card from "@/shared/ui/Card.svelte";
-  import CardHeader from "@/shared/ui/CardHeader.svelte";
-  import CardContent from "@/shared/ui/CardContent.svelte";
   import Button from "@/shared/ui/Button.svelte";
   import Checkbox from "@/shared/ui/Checkbox.svelte";
   import EmptyState from "@/shared/ui/EmptyState.svelte";
@@ -857,7 +854,7 @@
     title="載入活動中"
     body="正在整理銀行、投資與發票資料。"
   />{:else}
-  <div class="grid min-w-0 max-w-full gap-5 overflow-x-clip">
+  <div class="grid min-w-0 max-w-full gap-6 overflow-x-clip pt-3 md:pt-2">
     <form
       class="flex min-w-0 gap-2"
       role="search"
@@ -943,72 +940,11 @@
       </div>
     {/if}
     {#if !searching}
-      <div
-        class="hidden min-w-0 grid-cols-2 gap-3 md:grid md:grid-cols-3 md:gap-4"
-      >
-        <Card
-          ><CardContent class="p-5"
-            ><p class="text-xs font-semibold text-ink/50">
-              {selectedMonthLabel}收入
-            </p>
-            <p class="mt-2 truncate text-2xl font-bold text-moss">
-              {activitySummaryIncomplete
-                ? "—"
-                : `+${formatCurrency(incomeTotal)}`}
-            </p>
-            <p class="mt-1 text-xs text-ink/45">
-              {activitySummaryIncomplete
-                ? "資料尚未完整載入"
-                : "銀行與信用卡活動"}
-            </p></CardContent
-          ></Card
-        >
-        <Card
-          ><CardContent class="p-5"
-            ><p class="text-xs font-semibold text-ink/50">
-              {selectedMonthLabel}支出
-            </p>
-            <p class="mt-2 truncate text-2xl font-bold text-coral">
-              {activitySummaryIncomplete
-                ? "—"
-                : `−${formatCurrency(expenseTotal)}`}
-            </p>
-            <p class="mt-1 text-xs text-ink/45">
-              {activitySummaryIncomplete
-                ? "資料尚未完整載入"
-                : "含未配對發票，不計入已排除活動"}
-            </p></CardContent
-          ></Card
-        >
-        <Card
-          ><CardContent class="p-5"
-            ><p class="text-xs font-semibold text-ink/50">
-              {selectedMonthLabel}淨流入
-            </p>
-            <p
-              class={`mt-2 truncate text-2xl font-bold ${incomeTotal >= expenseTotal ? "text-moss" : "text-coral"}`}
-            >
-              {activitySummaryIncomplete
-                ? "—"
-                : formatCurrency(incomeTotal - expenseTotal)}
-            </p>
-            <p class="mt-1 text-xs text-ink/45">
-              {activitySummaryIncomplete ? "資料尚未完整載入" : "收入 − 支出"}
-            </p></CardContent
-          ></Card
-        >
-      </div>
-
-      <section class="grid min-w-0 gap-3">
+      <section class="min-w-0" aria-label={`${selectedMonthLabel}收支`}>
         <div
           class="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"
         >
-          <div class="min-w-0">
-            <h2 class="text-lg font-semibold">每月分類比例</h2>
-            <p class="mt-1 text-xs text-ink/45">
-              未配對發票列為支出，已配對發票不重複計算
-            </p>
-          </div>
+          <h2 class="text-base font-semibold">{selectedMonthLabel}收支</h2>
           <Select
             aria-label="選擇活動月份"
             class="h-11 w-full min-w-0 font-semibold sm:w-auto sm:shrink-0"
@@ -1020,7 +956,63 @@
               >{/each}</Select
           >
         </div>
-        <div class="grid min-w-0 gap-3 lg:grid-cols-2">
+        <div class="mt-5 grid grid-cols-2 gap-5">
+          <div class="min-w-0">
+            <p class="text-xs text-ink/55">{selectedMonthLabel}收入</p>
+            <p
+              class="mt-2 break-all text-lg font-medium text-moss tabular-nums"
+            >
+              {activitySummaryIncomplete
+                ? "—"
+                : `+${formatCurrency(incomeTotal)}`}
+            </p>
+            <p class="mt-1 text-[11px] text-ink/50">
+              {activitySummaryIncomplete
+                ? "資料尚未完整載入"
+                : "銀行與信用卡活動"}
+            </p>
+          </div>
+          <div class="min-w-0">
+            <p class="text-xs text-ink/55">{selectedMonthLabel}支出</p>
+            <p
+              class="mt-2 break-all text-lg font-medium text-coral tabular-nums"
+            >
+              {activitySummaryIncomplete
+                ? "—"
+                : `−${formatCurrency(expenseTotal)}`}
+            </p>
+            <p class="mt-1 text-[11px] text-ink/50">
+              {activitySummaryIncomplete
+                ? "資料尚未完整載入"
+                : "含未配對發票，不計入已排除活動"}
+            </p>
+          </div>
+        </div>
+        <div
+          class="mt-6 flex flex-wrap items-end justify-between gap-3 border-t border-ink/8 pt-5"
+        >
+          <div>
+            <p class="text-xs text-ink/55">{selectedMonthLabel}淨流入</p>
+            <p class="mt-1 text-[11px] text-ink/50">收入 − 支出</p>
+          </div>
+          <p
+            class={`break-all text-2xl font-medium tracking-tight tabular-nums ${incomeTotal >= expenseTotal ? "text-moss" : "text-coral"}`}
+          >
+            {activitySummaryIncomplete
+              ? "—"
+              : formatCurrency(incomeTotal - expenseTotal)}
+          </p>
+        </div>
+      </section>
+
+      <section class="min-w-0 border-t border-ink/10 pt-5">
+        <div class="min-w-0">
+          <h2 class="text-base font-semibold">每月分類比例</h2>
+          <p class="mt-1 text-xs text-ink/45">
+            未配對發票列為支出，已配對發票不重複計算
+          </p>
+        </div>
+        <div class="mt-5 grid min-w-0 gap-8 lg:grid-cols-2 lg:gap-10">
           <ActivityCategoryChart
             flow="income"
             slices={incomeSlices}
@@ -1046,31 +1038,32 @@
         </div>
       </section>
 
-      <Card class="hidden md:block">
-        <CardHeader class="flex-row items-center justify-between"
-          ><h2 class="text-lg font-semibold">現金流趨勢</h2>
-          <Badge variant="secondary">6 個月　收入／支出</Badge></CardHeader
-        >
-        <CardContent>
+      <section class="hidden min-w-0 border-t border-ink/10 pt-5 md:block">
+        <div class="flex items-center justify-between gap-3">
+          <h2 class="text-base font-semibold">現金流趨勢</h2>
+          <span class="text-xs text-ink/50">6 個月　收入／支出</span>
+        </div>
+        <div class="pt-5">
           {#if activitySummaryIncomplete}
             <div
-              class="rounded-xl bg-amber-50 p-6 text-center text-sm text-amber-900"
+              class="rounded-xl border border-amber-200/80 bg-amber-50 p-6 text-center text-sm text-amber-900"
             >
               活動資料尚未完整載入，現金流趨勢暫不計算。
             </div>
-          {:else}<div class="grid grid-cols-6 gap-3">
+          {:else}
+            <div class="grid grid-cols-6 gap-3">
               {#each cashFlow as point (point.month)}
                 <button
                   aria-pressed={selectedMonth === point.month}
-                  class={`grid min-w-0 rounded-xl px-2 pb-2 pt-3 transition ${selectedMonth === point.month ? "bg-steel/10 ring-2 ring-steel/30" : "hover:bg-paper"}`}
+                  class={`grid min-w-0 px-1 pb-2 pt-3 text-left transition ${selectedMonth === point.month ? "bg-ink/4 shadow-[inset_0_-2px_0_var(--color-steel)]" : "hover:bg-ink/3"}`}
                   onclick={() => chooseMonth(point.month)}
                 >
                   <div class="flex h-28 items-end justify-center gap-2">
                     <span
-                      class="w-1/3 rounded-t-lg bg-emerald-700"
+                      class="w-1/3 rounded-t-sm bg-emerald-700"
                       style={`height:${Math.max(8, (point.income / maxCashFlow) * 100)}%`}
                     ></span><span
-                      class="w-1/3 rounded-t-lg bg-coral"
+                      class="w-1/3 rounded-t-sm bg-coral"
                       style={`height:${Math.max(8, (point.expense / maxCashFlow) * 100)}%`}
                     ></span>
                   </div>
@@ -1095,17 +1088,21 @@
                 class="font-semibold text-steel"
                 onclick={() => chooseMonth(currentMonth)}>回到本月</button
               >
-            </div>{/if}
-        </CardContent>
-      </Card>
+            </div>
+          {/if}
+        </div>
+      </section>
     {/if}
-    <Card class="min-w-0 max-w-full overflow-hidden">
-      <CardHeader class="min-w-0 gap-3 border-b border-ink/8">
+    <section
+      class="min-w-0 max-w-full overflow-hidden border-t border-ink/10 pt-5"
+      aria-label="活動列表"
+    >
+      <header class="grid min-w-0 gap-3 pb-4">
         <div
           class="flex min-w-0 flex-col gap-3 md:flex-row md:items-center md:justify-between"
         >
           <div class="min-w-0">
-            <h2 class="truncate text-lg font-semibold">
+            <h2 class="truncate text-base font-semibold">
               {searching
                 ? `已載入 ${filtered.length} 筆`
                 : selectedCategory
@@ -1124,7 +1121,7 @@
           </div>
         </div>
         {#if selectedCategory}<div
-            class="flex items-center justify-between rounded-lg bg-steel/10 px-3 py-2 text-sm"
+            class="flex items-center justify-between border-y border-ink/8 py-2 text-sm"
           >
             <span
               ><strong>{selectedCategory.category}</strong> · {selectedCategory.flow ===
@@ -1163,8 +1160,8 @@
           >
             無法更新計算設定，請稍後再試。
           </p>{/if}
-      </CardHeader>
-      <CardContent class="min-w-0 p-0">
+      </header>
+      <div class="min-w-0">
         <div class="min-w-0 md:hidden">
           {#if filteredGroups.length === 0}<p
               class="p-8 text-center text-sm text-ink/50"
@@ -1176,10 +1173,11 @@
                   : activityDataStatus.hasFailure
                     ? "部分資料目前無法顯示，請重試後再查看。"
                     : "沒有符合條件的活動。"}
-            </p>{:else}{#each filteredGroups as group (group.dateKey)}<div
-                class="flex items-center justify-between bg-paper px-4 py-2.5 text-xs"
+            </p>{:else}
+            {#each filteredGroups as group (group.dateKey)}<div
+                class="flex items-center justify-between border-t border-ink/8 py-2.5 text-xs"
               >
-                <span class="font-semibold text-ink/80"
+                <span class="font-medium text-ink/50"
                   >{searching
                     ? `${group.dateKey.slice(0, 4)} 年 `
                     : ""}{formatActivityDateGroup(group.dateKey)}</span
@@ -1191,7 +1189,7 @@
                     formatActivityTime(item)}
                   <button
                     aria-label={`查看 ${item.title} 活動詳情`}
-                    class={`flex w-full min-w-0 items-center gap-3 px-4 py-3.5 text-left transition hover:bg-paper ${item.excludedFromCalculation ? "bg-ink/[0.025]" : ""}`}
+                    class={`flex w-full min-w-0 items-center gap-3 py-3.5 text-left transition hover:bg-ink/3 ${item.excludedFromCalculation ? "bg-ink/[0.025]" : ""}`}
                     onclick={() => openDetail(item)}
                   >
                     <div class="min-w-0 flex-1">
@@ -1268,20 +1266,21 @@
                   class="w-44"
                 /></colgroup
               >
-              <thead class="text-xs font-semibold text-ink/45"
+              <thead
+                class="border-b border-ink/8 text-xs font-semibold text-ink/45"
                 ><tr
-                  ><th class="px-5 py-2.5">商家／說明</th><th
+                  ><th class="py-2.5 pr-4">商家／說明</th><th
                     class="px-4 py-2.5">銀行／帳戶</th
                   ><th class="px-4 py-2.5">分類</th><th
-                    class="px-5 py-2.5 text-right">金額</th
+                    class="py-2.5 pl-4 text-right">金額</th
                   ></tr
                 ></thead
               >
             </table>
             {#each filteredGroups as group (group.dateKey)}<div
-                class="flex min-w-[760px] items-center justify-between bg-paper px-5 py-2.5 text-xs"
+                class="flex min-w-[760px] items-center justify-between border-t border-ink/8 py-2.5 text-xs"
               >
-                <span class="font-semibold text-ink/80"
+                <span class="font-medium text-ink/50"
                   >{searching
                     ? `${group.dateKey.slice(0, 4)} 年 `
                     : ""}{formatActivityDateGroup(group.dateKey)}</span
@@ -1298,7 +1297,7 @@
                       activityDisplayAmount(item)}{@const time =
                       formatActivityTime(item)}<tr
                       aria-label={`查看 ${item.title} 活動詳情`}
-                      class={`cursor-pointer transition hover:bg-paper focus-visible:outline-2 focus-visible:outline-steel ${item.excludedFromCalculation ? "bg-ink/[0.025]" : ""}`}
+                      class={`cursor-pointer transition hover:bg-ink/3 focus-visible:outline-2 focus-visible:outline-steel ${item.excludedFromCalculation ? "bg-ink/[0.025]" : ""}`}
                       onclick={() => openDetail(item)}
                       onkeydown={(event) => {
                         if (event.key === "Enter" || event.key === " ") {
@@ -1308,7 +1307,7 @@
                       }}
                       role="button"
                       tabindex="0"
-                      ><td class="min-w-0 px-5 py-3.5"
+                      ><td class="min-w-0 py-3.5 pr-4"
                         ><p class="truncate font-semibold">
                           <SearchHighlight
                             text={item.title}
@@ -1350,7 +1349,7 @@
                           </p>{/if}</td
                       ><td class="px-4 py-3.5"
                         ><Badge variant="secondary">{item.category}</Badge></td
-                      ><td class="px-5 py-3.5"
+                      ><td class="py-3.5 pl-4"
                         ><div class="flex items-center justify-end gap-2">
                           <div class="min-w-0 text-right">
                             <p
@@ -1373,8 +1372,8 @@
                 >
               </table>{/each}{/if}
         </div>
-      </CardContent>
-    </Card>
+      </div>
+    </section>
     {#if searching && $searchResults.hasNextPage && !invalidSearchDates}
       <div
         bind:this={searchSentinel}

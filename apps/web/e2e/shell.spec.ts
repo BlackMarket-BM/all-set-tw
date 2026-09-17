@@ -465,9 +465,7 @@ test("keeps the desktop overview within the viewport with long data", async ({
   });
 
   await page.goto("/#/overview");
-  await expect(
-    page.getByRole("heading", { name: "本月財務脈動" }),
-  ).toBeVisible();
+  await expect(page.getByRole("heading", { name: "本月收支" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "值得留意" })).toBeVisible();
   const pageWidth = await page.evaluate(() => ({
     client: document.documentElement.clientWidth,
@@ -507,6 +505,7 @@ test("keeps net worth comparison details readable across viewports", async ({
   ] as const;
 
   for (const viewport of [
+    { width: 320, height: 740 },
     { width: 390, height: 844 },
     { width: 1280, height: 900 },
   ]) {
@@ -514,9 +513,28 @@ test("keeps net worth comparison details readable across viewports", async ({
     await page.goto("/#/overview");
 
     await expect(page.getByRole("heading", { name: "資產走勢" })).toBeVisible();
+    const settings = page.getByRole("button", { name: "顯示設定" });
+    await expect(settings).toHaveAttribute("aria-expanded", "false");
+    await expect(
+      page.getByRole("tab", { name: "分類", exact: true }),
+    ).toBeHidden();
+    await settings.click();
+    await page.getByRole("tab", { name: "分類", exact: true }).click();
+    await expect(
+      page.getByRole("tab", { name: "分類", exact: true }),
+    ).toHaveAttribute("aria-selected", "true");
+    await expect(
+      page.getByRole("button", { name: "存款", exact: true }),
+    ).toHaveAttribute("aria-pressed", "true");
+    await settings.click();
+    await expect(
+      page.getByRole("tab", { name: "分類", exact: true }),
+    ).toBeHidden();
+    await expect(page.getByText("目前", { exact: true })).toBeHidden();
+    await page.locator("summary").filter({ hasText: "比較明細" }).click();
     const comparisonCard = page
       .getByText("目前", { exact: true })
-      .locator("xpath=ancestor::div[contains(@class, 'rounded-lg')][1]");
+      .locator("../..");
 
     for (const { label, date, value } of comparisonRows) {
       const labelElement = comparisonCard.getByText(label, { exact: true });
@@ -549,6 +567,8 @@ test("keeps net worth comparison details readable across viewports", async ({
       scroll: document.documentElement.scrollWidth,
     }));
     expect(pageWidth.scroll).toBe(pageWidth.client);
+    await page.locator("summary").filter({ hasText: "比較明細" }).click();
+    await expect(page.getByText("目前", { exact: true })).toBeHidden();
   }
 });
 
@@ -556,6 +576,18 @@ test("keeps partial sync financial changes readable on mobile", async ({
   page,
 }) => {
   await page.setViewportSize({ width: 390, height: 844 });
+  await page.route("**/api/sync-reports/*/activities", async (route) => {
+    await route.fulfill({
+      json: {
+        sources: Object.fromEntries(
+          ["esun", "taishin", "einvoice"].map((connectorId) => [
+            connectorId,
+            { availability: "available", items: [] },
+          ]),
+        ),
+      },
+    });
+  });
   await page.route("**/api/sync-reports/latest", async (route) => {
     await route.fulfill({
       status: 200,
