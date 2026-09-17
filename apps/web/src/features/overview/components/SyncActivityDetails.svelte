@@ -41,9 +41,6 @@
     <p class="text-xs text-ink/50">活動明細整理中，請稍後重新整理。</p>
     <Button variant="ghost" size="sm" onclick={onRetry}>重新整理</Button>
   {:else}
-    <p class="mb-2 text-[11px] text-ink/45">
-      依本次同步變動列出；交易與發票配對後合併顯示，活動數可能與新增資料筆數不同。金額為原幣。
-    </p>
     {#if !page?.items.length}
       <p class="text-xs text-ink/50">本次沒有新增活動、入帳或補上發票。</p>
     {:else}
@@ -61,12 +58,14 @@
                 : formatCurrency(item.amount, item.currency)}
             </p>
             <p class="min-w-0 break-words text-[11px] text-ink/50">
-              {item.date ? formatDate(item.date) : "日期未提供"} · {item.subtitle}
+              {item.date ? formatDate(item.date) : "日期未提供"}{item.subtitle
+                ? ` · ${item.subtitle.split(" · ")[0]}`
+                : ""}
             </p>
-            <div class="flex flex-wrap justify-end gap-1">
+            <div class="flex flex-wrap items-start justify-end gap-1">
               {#each item.changes as change}
                 <span
-                  class="rounded bg-moss/10 px-1.5 py-0.5 text-[10px] font-medium text-moss"
+                  class="whitespace-nowrap rounded bg-moss/10 px-1.5 py-0.5 text-[10px] font-medium text-moss"
                   >{labels[change]}</span
                 >
               {/each}

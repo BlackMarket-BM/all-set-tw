@@ -54,4 +54,29 @@ describe("本次同步明細", () => {
       moneyState.hidden = false;
     }
   });
+
+  it("只顯示日期與來源名稱，狀態標籤維持內容高度", async () => {
+    const ui = render(SyncActivityDetails, {
+      props: {
+        page: {
+          availability: "available",
+          items: [
+            {
+              ...item,
+              subtitle: "中國信託商業銀行 · LINE Pay信用卡 · FE79512955",
+              changes: ["posted"],
+            },
+          ],
+        },
+        onRetry: vi.fn(),
+      },
+    });
+
+    expect(
+      await ui.findByText("2026/9/1 · 中國信託商業銀行", { exact: true }),
+    ).toBeInTheDocument();
+    expect(ui.queryByText(/LINE Pay信用卡|FE79512955/)).not.toBeInTheDocument();
+    expect(ui.queryByText(/依本次同步變動列出/)).not.toBeInTheDocument();
+    expect(ui.getByText("已入帳").parentElement).toHaveClass("items-start");
+  });
 });
