@@ -58,7 +58,7 @@
       <p class="mt-1 text-caption text-subtle">點選分類查看該月活動</p>
     </div>
     <p
-      class={`shrink-0 text-lg font-medium tracking-tight tabular-nums ${flow === "income" ? "text-moss" : "text-coral"}`}
+      class={`min-w-0 max-w-[58%] break-all text-right text-lg font-medium tracking-tight tabular-nums ${flow === "income" ? "text-moss" : "text-coral"}`}
     >
       {#if dataIncomplete}—{:else}{flow === "income"
           ? "+"
@@ -130,7 +130,7 @@
                 <span class="block text-caption font-medium tabular-nums"
                   >{slice.percentage.toFixed(1)}%</span
                 >
-                <span class="block text-xs text-subtle tabular-nums"
+                <span class="block text-caption text-subtle tabular-nums"
                   >{formatCurrency(slice.amount)}</span
                 >
               </span>

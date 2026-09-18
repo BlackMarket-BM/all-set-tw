@@ -965,7 +965,7 @@
                 ? "—"
                 : `+${formatCurrency(incomeTotal)}`}
             </p>
-            <p class="mt-1 text-xs text-subtle">
+            <p class="mt-1 text-caption text-subtle">
               {activitySummaryIncomplete
                 ? "資料尚未完整載入"
                 : "銀行與信用卡活動"}
@@ -980,7 +980,7 @@
                 ? "—"
                 : `−${formatCurrency(expenseTotal)}`}
             </p>
-            <p class="mt-1 text-xs text-subtle">
+            <p class="mt-1 text-caption text-subtle">
               {activitySummaryIncomplete
                 ? "資料尚未完整載入"
                 : "含未配對發票，不計入已排除活動"}
@@ -990,12 +990,12 @@
         <div
           class="mt-6 flex flex-wrap items-end justify-between gap-3 border-t border-ink/8 pt-5"
         >
-          <div>
+          <div class="min-w-0">
             <p class="text-caption text-subtle">{selectedMonthLabel}淨流入</p>
-            <p class="mt-1 text-xs text-subtle">收入 − 支出</p>
+            <p class="mt-1 text-caption text-subtle">收入 − 支出</p>
           </div>
           <p
-            class={`break-all text-2xl font-medium tracking-tight tabular-nums ${incomeTotal >= expenseTotal ? "text-moss" : "text-coral"}`}
+            class={`min-w-0 break-all text-right text-2xl font-medium tracking-tight tabular-nums ${incomeTotal >= expenseTotal ? "text-moss" : "text-coral"}`}
           >
             {activitySummaryIncomplete
               ? "—"
@@ -1054,10 +1054,10 @@
               {#each cashFlow as point (point.month)}
                 <button
                   aria-pressed={selectedMonth === point.month}
-                  class={`grid min-w-0 px-1 pb-2 pt-3 text-left transition ${selectedMonth === point.month ? "bg-ink/4 shadow-[inset_0_-2px_0_var(--color-steel)]" : "hover:bg-ink/3"}`}
+                  class={`grid min-w-0 justify-items-center px-1 pb-2 pt-3 text-center transition ${selectedMonth === point.month ? "bg-ink/4 shadow-[inset_0_-2px_0_var(--color-steel)]" : "hover:bg-ink/3"}`}
                   onclick={() => chooseMonth(point.month)}
                 >
-                  <div class="flex h-28 items-end justify-center gap-2">
+                  <div class="flex h-28 w-full items-end justify-center gap-2">
                     <span
                       class="w-1/3 rounded-t-sm bg-emerald-700"
                       style={`height:${Math.max(8, (point.income / maxCashFlow) * 100)}%`}
@@ -1066,11 +1066,13 @@
                       style={`height:${Math.max(8, (point.expense / maxCashFlow) * 100)}%`}
                     ></span>
                   </div>
-                  <span class="mt-2 text-caption font-semibold"
+                  <span class="mt-2 w-full text-caption font-semibold"
                     >{Number(point.month.slice(5))} 月</span
-                  ><span class="mt-1 truncate text-xs text-moss"
+                  ><span
+                    class="mt-1 w-full truncate text-caption font-medium tabular-nums text-moss"
                     >+{formatCompactTwd(point.income)}</span
-                  ><span class="truncate text-xs text-coral"
+                  ><span
+                    class="w-full truncate text-caption font-medium tabular-nums text-coral"
                     >−{formatCompactTwd(point.expense)}</span
                   >
                 </button>

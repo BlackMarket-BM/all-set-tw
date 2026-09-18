@@ -142,7 +142,7 @@
           >
             {formatCurrency(summary.bankTotal)}
           </p>
-          <p class="mt-1 text-xs text-subtle md:text-caption">
+          <p class="mt-1 text-caption text-subtle">
             {summary.deposits.length} 個帳戶
           </p>
         </div>
@@ -158,7 +158,7 @@
           >
             {formatCurrency(summary.investmentTotal)}
           </p>
-          <p class="mt-1 text-xs text-subtle md:text-caption">
+          <p class="mt-1 text-caption text-subtle">
             {$investments.data?.length ?? 0} 個持倉
           </p>
         </div>
@@ -174,7 +174,7 @@
           >
             {formatCurrency(summary.manualTotal)}
           </p>
-          <p class="mt-1 text-xs text-subtle md:text-caption">
+          <p class="mt-1 text-caption text-subtle">
             {$manual.data?.length ?? 0} 筆
           </p>
         </div>

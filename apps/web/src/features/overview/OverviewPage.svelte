@@ -121,17 +121,17 @@
   const netWorth = $derived(gross - cardDebt);
   const allocation = $derived([
     {
+      label: "銀行與現金",
+      value: depositTotal,
+      detail: `${deposits.length} 個帳戶`,
+    },
+    {
       label: "投資",
       value: investmentTotal,
       detail: `${$investments.data?.length ?? 0} 個持倉`,
     },
     {
-      label: "存款",
-      value: depositTotal,
-      detail: `${deposits.length} 個帳戶`,
-    },
-    {
-      label: "其他",
+      label: "其他資產",
       value: manualTotal,
       detail: "保險、房產",
     },
@@ -348,7 +348,7 @@
         {#each allocation as item (item.label)}
           <div class="min-w-0">
             <p class="text-caption text-subtle">
-              {item.label === "其他" ? "其他資產" : item.label}
+              {item.label}
             </p>
             <p
               class="mt-2 text-lg font-medium tracking-tight tabular-nums md:hidden"
@@ -360,7 +360,7 @@
             >
               {formatCurrency(item.value)}
             </p>
-            <p class="mt-1 text-xs text-subtle md:text-caption">
+            <p class="mt-1 text-caption text-subtle">
               {item.detail}
             </p>
           </div>
@@ -390,7 +390,7 @@
           <p class="mt-2 break-all text-lg font-medium text-moss tabular-nums">
             +{formatCurrency(monthlyIncome)}
           </p>
-          <p class="mt-1 text-xs text-subtle">銀行與信用卡活動</p>
+          <p class="mt-1 text-caption text-subtle">銀行與信用卡活動</p>
         </div>
         <div class="min-w-0">
           <p class="text-caption text-subtle">
@@ -399,15 +399,15 @@
           <p class="mt-2 break-all text-lg font-medium text-coral tabular-nums">
             −{formatCurrency(monthlyExpense)}
           </p>
-          <p class="mt-1 text-xs text-subtle">含未配對發票</p>
+          <p class="mt-1 text-caption text-subtle">含未配對發票</p>
         </div>
       </div>
       <div
         class="mt-6 flex flex-wrap items-end justify-between gap-3 border-t border-ink/8 pt-5"
       >
-        <div>
+        <div class="min-w-0">
           <p class="text-caption text-subtle">本月淨流入</p>
-          <p class="mt-1 text-xs text-subtle">收入 − 支出</p>
+          <p class="mt-1 text-caption text-subtle">收入 − 支出</p>
         </div>
         <p
           class={`break-all text-2xl font-medium tracking-tight tabular-nums ${monthlyNet >= 0 ? "text-moss" : "text-coral"}`}

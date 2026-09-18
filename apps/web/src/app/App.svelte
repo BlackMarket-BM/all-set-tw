@@ -249,7 +249,7 @@
                   >
                 </h1>
               {/if}
-              <p class="mt-1 hidden text-sm text-subtle md:block">
+              <p class="mt-1 hidden text-sm leading-6 text-subtle md:block">
                 {detail?.description ??
                   mobileSetting?.description ??
                   currentView.description}
