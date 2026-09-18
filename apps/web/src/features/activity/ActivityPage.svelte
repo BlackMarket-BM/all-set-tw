@@ -962,18 +962,11 @@
               >{/each}</Select
           >
         </div>
-        <div class="mt-5 grid grid-cols-3 gap-3 md:gap-6">
+        <div class="mt-5 grid grid-cols-2 gap-5 md:grid-cols-3 md:gap-6">
           <div class="min-w-0">
             <p class="text-sm font-medium text-ink">收入</p>
             <p
-              class="mt-2 whitespace-nowrap text-lg font-semibold tracking-tight text-moss tabular-nums md:hidden"
-            >
-              {activitySummaryIncomplete
-                ? "—"
-                : `+${formatCompactTwd(incomeTotal)}`}
-            </p>
-            <p
-              class="mt-2 hidden break-all text-2xl font-semibold tracking-tight text-moss tabular-nums md:block"
+              class="mt-2 whitespace-nowrap text-lg font-semibold tracking-tight text-moss tabular-nums md:text-2xl"
             >
               {activitySummaryIncomplete
                 ? "—"
@@ -983,31 +976,17 @@
           <div class="min-w-0">
             <p class="text-sm font-medium text-ink">支出</p>
             <p
-              class="mt-2 whitespace-nowrap text-lg font-semibold tracking-tight text-coral tabular-nums md:hidden"
-            >
-              {activitySummaryIncomplete
-                ? "—"
-                : `−${formatCompactTwd(expenseTotal)}`}
-            </p>
-            <p
-              class="mt-2 hidden break-all text-2xl font-semibold tracking-tight text-coral tabular-nums md:block"
+              class="mt-2 whitespace-nowrap text-lg font-semibold tracking-tight text-coral tabular-nums md:text-2xl"
             >
               {activitySummaryIncomplete
                 ? "—"
                 : `−${formatCurrency(expenseTotal)}`}
             </p>
           </div>
-          <div class="min-w-0">
+          <div class="col-span-2 min-w-0 md:col-span-1">
             <p class="text-sm font-medium text-ink">淨流入</p>
             <p
-              class={`mt-2 whitespace-nowrap text-lg font-semibold tracking-tight tabular-nums md:hidden ${incomeTotal >= expenseTotal ? "text-moss" : "text-coral"}`}
-            >
-              {activitySummaryIncomplete
-                ? "—"
-                : formatCompactTwd(incomeTotal - expenseTotal)}
-            </p>
-            <p
-              class={`mt-2 hidden break-all text-2xl font-semibold tracking-tight tabular-nums md:block ${incomeTotal >= expenseTotal ? "text-moss" : "text-coral"}`}
+              class={`mt-2 whitespace-nowrap text-lg font-semibold tracking-tight tabular-nums md:text-2xl ${incomeTotal >= expenseTotal ? "text-moss" : "text-coral"}`}
             >
               {activitySummaryIncomplete
                 ? "—"
