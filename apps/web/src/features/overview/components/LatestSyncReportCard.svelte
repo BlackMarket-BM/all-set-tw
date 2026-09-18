@@ -125,7 +125,7 @@
 {#if loading}
   <div aria-busy="true">
     <div
-      class="flex min-h-20 items-center gap-3 border-t border-ink/10 pt-5 text-ink/50"
+      class="flex min-h-20 items-center gap-3 border-t border-ink/10 pt-5 text-subtle"
     >
       <RefreshCw class="size-5 animate-spin" />
       <p class="text-sm font-medium">讀取最近同步結果中</p>
@@ -149,13 +149,15 @@
             {/if}
           </span>
           <div class="min-w-0">
-            <p class="text-xs font-semibold text-ink/45">最近一次排程同步</p>
+            <p class="text-caption font-semibold text-subtle">
+              最近一次排程同步
+            </p>
             <h2 class="mt-1 text-base font-semibold">{presentation.label}</h2>
-            <p class="mt-1 text-xs text-ink/50">
+            <p class="mt-1 text-caption text-subtle">
               {presentation.description}
             </p>
             {#if recoveryMessage}
-              <p class="mt-1 text-xs font-medium text-moss">
+              <p class="mt-1 text-caption font-medium text-moss">
                 已於 {formatDateTime(recoveryMessage)} 手動{report.status ===
                 "success"
                   ? "補齊"
@@ -165,7 +167,7 @@
           </div>
         </div>
         <time
-          class="text-xs font-medium text-ink/45"
+          class="text-caption font-medium text-subtle"
           datetime={report.completedAt}
           >{formatDateTime(report.completedAt)}</time
         >
@@ -173,12 +175,12 @@
 
       <div class="grid gap-5 md:grid-cols-[minmax(0,0.85fr)_minmax(0,1.15fr)]">
         <div class="min-w-0 py-1">
-          <p class="text-xs font-semibold text-ink/50">新增資料</p>
+          <p class="text-caption font-semibold text-subtle">新增資料</p>
           <div class="mt-3 grid grid-cols-3 gap-2">
             {#each newRecordItems as item (item.label)}
               <div class="min-w-0">
                 <p class="text-lg font-medium tabular-nums">{item.value}</p>
-                <p class="mt-1 truncate text-[11px] text-ink/45">
+                <p class="mt-1 truncate text-xs text-subtle">
                   {item.label}
                 </p>
               </div>
@@ -190,9 +192,9 @@
           <div
             class="min-w-0 border-t border-ink/8 pt-4 md:border-t-0 md:border-l md:pl-6 md:pt-1"
           >
-            <p class="text-xs font-semibold text-ink/50">同步後變化</p>
+            <p class="text-caption font-semibold text-subtle">同步後變化</p>
             {#if financialChangeScope}
-              <p class="mt-1 text-[11px] leading-relaxed text-amber-800">
+              <p class="mt-1 text-xs leading-relaxed text-amber-800">
                 {financialChangeScope}
               </p>
             {/if}
@@ -211,7 +213,7 @@
                     {formatFinancialChange(item.value)}
                   </p>
                   <p
-                    class="col-start-1 row-start-1 truncate text-[11px] text-ink/45 sm:mt-1"
+                    class="col-start-1 row-start-1 truncate text-xs text-subtle sm:mt-1"
                   >
                     {item.label}
                   </p>
@@ -224,7 +226,7 @@
             class="flex items-center gap-3 rounded-xl border border-amber-200 bg-amber-50/70 p-4 text-amber-900"
           >
             <TriangleAlert class="size-5 shrink-0" />
-            <p class="text-xs font-medium leading-relaxed">
+            <p class="text-caption font-medium leading-relaxed">
               {unavailableMessage}
             </p>
           </div>
@@ -236,7 +238,9 @@
           class="flex items-start gap-2 rounded-lg bg-amber-50/70 px-3 py-2.5 text-amber-900"
         >
           <TriangleAlert class="mt-0.5 size-4 shrink-0" />
-          <p class="text-xs font-medium leading-relaxed">{zeroRateMessage}</p>
+          <p class="text-caption font-medium leading-relaxed">
+            {zeroRateMessage}
+          </p>
         </div>
       {/if}
 
@@ -246,7 +250,7 @@
           class="group border-t border-border/70 pt-4"
         >
           <summary
-            class="cursor-pointer list-none text-xs font-semibold text-steel marker:content-none"
+            class="cursor-pointer list-none text-caption font-semibold text-steel marker:content-none"
           >
             <span class="group-open:hidden">查看各資料來源</span>
             <span class="hidden group-open:inline">收合各資料來源</span>
@@ -258,15 +262,15 @@
                   class="flex flex-wrap items-center justify-between gap-x-4 gap-y-1"
                 >
                   <div class="min-w-0">
-                    <p class="truncate text-xs font-semibold">
+                    <p class="truncate text-caption font-semibold">
                       {connectorCatalog[source.connectorId].title}
                     </p>
-                    <p class="mt-0.5 text-[11px] text-ink/45">
+                    <p class="mt-0.5 text-xs text-subtle">
                       {sourceNewRecordSummary(source)}
                     </p>
                   </div>
                   <span
-                    class={`text-xs font-semibold ${source.status === "success" ? "text-moss" : "text-amber-700"}`}
+                    class={`text-caption font-semibold ${source.status === "success" ? "text-moss" : "text-amber-700"}`}
                   >
                     {sourceStatusLabel(source.status)}
                   </span>

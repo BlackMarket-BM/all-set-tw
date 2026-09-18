@@ -119,28 +119,20 @@
   );
   const gross = $derived(depositTotal + investmentTotal + manualTotal);
   const netWorth = $derived(gross - cardDebt);
-  const pct = (value: number) =>
-    gross > 0 ? Math.round((value / gross) * 100) : 0;
   const allocation = $derived([
     {
-      label: "投資",
-      value: investmentTotal,
-      bar: "bg-steel",
-      text: "text-steel",
-      detail: `${$investments.data?.length ?? 0} 個持倉`,
-    },
-    {
-      label: "存款",
+      label: "銀行與現金",
       value: depositTotal,
-      bar: "bg-moss",
-      text: "text-moss",
       detail: `${deposits.length} 個帳戶`,
     },
     {
-      label: "其他",
+      label: "投資",
+      value: investmentTotal,
+      detail: `${$investments.data?.length ?? 0} 個持倉`,
+    },
+    {
+      label: "其他資產",
       value: manualTotal,
-      bar: "bg-coral",
-      text: "text-coral",
       detail: "保險、房產",
     },
   ]);
@@ -313,6 +305,7 @@
   <EmptyState title="載入總覽中" body="正在讀取最新紀錄。" />
 {:else if failed}
   <EmptyState
+    alert
     title="無法載入總覽"
     body="請稍後再試，或確認 Worker API 是否可用。"
   />
@@ -335,8 +328,8 @@
 
     <section class="min-w-0 pt-3 md:pt-2" aria-label="淨資產">
       <div class="flex flex-wrap items-center justify-between gap-2">
-        <p class="text-sm text-ink/60">淨資產</p>
-        <p class="text-xs text-ink/50">
+        <p class="text-sm text-subtle">淨資產</p>
+        <p class="text-caption text-subtle">
           {new Intl.DateTimeFormat("zh-TW", {
             year: "numeric",
             month: "long",
@@ -345,33 +338,18 @@
         </p>
       </div>
       <p
-        class="mt-3 break-all text-[clamp(2rem,7vw,3rem)] leading-tight font-medium tracking-tight tabular-nums"
+        class="mt-3 break-all text-[clamp(2rem,7vw,2.75rem)] leading-tight font-semibold tracking-tight tabular-nums"
       >
         {formatCurrency(netWorth)}
       </p>
-      <p class="mt-3 text-xs text-ink/55">
+      <p class="mt-3 text-caption text-subtle">
         已扣除 {formatCurrency(cardDebt)} 信用卡負債
       </p>
-      <div
-        class="mt-6 flex h-1 overflow-hidden rounded-full bg-ink/5"
-        aria-hidden="true"
-      >
-        {#each allocation as item (item.label)}
-          <span class={`h-full ${item.bar}`} style={`width:${pct(item.value)}%`}
-          ></span>
-        {/each}
-      </div>
-      <div class="mt-5 grid grid-cols-3 gap-3 md:gap-6">
+      <div class="mt-6 grid grid-cols-3 gap-3 md:gap-6">
         {#each allocation as item (item.label)}
           <div class="min-w-0">
-            <p class="flex min-w-0 items-center gap-1.5 text-xs text-ink/60">
-              <span class={`size-1.5 shrink-0 rounded-full ${item.bar}`}></span>
-              <span class="min-w-0 truncate"
-                >{item.label === "其他" ? "其他資產" : item.label}</span
-              >
-              <span class="shrink-0 tabular-nums text-ink/45"
-                >{pct(item.value)}%</span
-              >
+            <p class="text-caption text-subtle">
+              {item.label}
             </p>
             <p
               class="mt-2 text-lg font-medium tracking-tight tabular-nums md:hidden"
@@ -379,11 +357,11 @@
               {formatCompactTwd(item.value)}
             </p>
             <p
-              class="mt-2 hidden break-all text-xl font-medium tracking-tight tabular-nums md:block 2xl:text-2xl"
+              class="mt-2 hidden break-all text-2xl font-semibold tracking-tight tabular-nums md:block"
             >
               {formatCurrency(item.value)}
             </p>
-            <p class="mt-1 text-[11px] text-ink/55 md:text-xs">
+            <p class="mt-1 text-caption text-subtle">
               {item.detail}
             </p>
           </div>
@@ -399,44 +377,42 @@
     </div>
 
     <section class="min-w-0 border-t border-ink/10 pt-5" aria-label="本月收支">
-      <div class="flex flex-wrap items-center justify-between gap-2">
-        <h2 class="text-base font-semibold">本月收支</h2>
+      <div class="flex flex-wrap items-start justify-between gap-2">
+        <div class="min-w-0">
+          <h2 class="text-base font-semibold">本月收支</h2>
+          <p class="mt-1 text-caption leading-6 text-ink/70">
+            銀行與信用卡活動，含未配對發票
+          </p>
+        </div>
         <Button variant="ghost" size="sm" onclick={() => navigate("activity")}
           >查看活動 →</Button
         >
       </div>
-      <div class="mt-5 grid grid-cols-2 gap-5">
+      <div class="mt-5 grid grid-cols-3 gap-3 md:gap-6">
         <div class="min-w-0">
-          <p class="text-xs text-ink/55">
-            {Number(monthKey.slice(5))} 月收入
-          </p>
-          <p class="mt-2 break-all text-lg font-medium text-moss tabular-nums">
+          <p class="text-sm font-medium text-ink">收入</p>
+          <p
+            class="mt-2 break-all text-xl font-semibold tracking-tight text-moss tabular-nums md:text-2xl"
+          >
             +{formatCurrency(monthlyIncome)}
           </p>
-          <p class="mt-1 text-[11px] text-ink/50">銀行與信用卡活動</p>
         </div>
         <div class="min-w-0">
-          <p class="text-xs text-ink/55">
-            {Number(monthKey.slice(5))} 月支出
-          </p>
-          <p class="mt-2 break-all text-lg font-medium text-coral tabular-nums">
+          <p class="text-sm font-medium text-ink">支出</p>
+          <p
+            class="mt-2 break-all text-xl font-semibold tracking-tight text-coral tabular-nums md:text-2xl"
+          >
             −{formatCurrency(monthlyExpense)}
           </p>
-          <p class="mt-1 text-[11px] text-ink/50">含未配對發票</p>
         </div>
-      </div>
-      <div
-        class="mt-6 flex flex-wrap items-end justify-between gap-3 border-t border-ink/8 pt-5"
-      >
-        <div>
-          <p class="text-xs text-ink/55">本月淨流入</p>
-          <p class="mt-1 text-[11px] text-ink/50">收入 − 支出</p>
+        <div class="min-w-0">
+          <p class="text-sm font-medium text-ink">淨流入</p>
+          <p
+            class={`mt-2 break-all text-xl font-semibold tracking-tight tabular-nums md:text-2xl ${monthlyNet >= 0 ? "text-moss" : "text-coral"}`}
+          >
+            {formatCurrency(monthlyNet)}
+          </p>
         </div>
-        <p
-          class={`break-all text-2xl font-medium tracking-tight tabular-nums ${monthlyNet >= 0 ? "text-moss" : "text-coral"}`}
-        >
-          {formatCurrency(monthlyNet)}
-        </p>
       </div>
     </section>
 
@@ -447,15 +423,15 @@
       <div class="flex flex-col gap-2 md:flex-row md:items-center md:gap-6">
         <h2
           id="overview-insights"
-          class="shrink-0 text-xs font-medium text-ink/60"
+          class="shrink-0 text-caption font-medium text-subtle"
         >
           值得留意
         </h2>
         {#if insights.length === 0}
-          <div class="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
+          <div class="flex flex-wrap items-center gap-x-3 gap-y-1 text-caption">
             <CircleCheckBig class="size-4 shrink-0 text-moss" />
             <p>目前沒有需要處理的事項</p>
-            <p class="text-ink/55">同步與本月收支狀態正常</p>
+            <p class="text-subtle">同步與本月收支狀態正常</p>
           </div>
         {:else}
           <div class="grid min-w-0 flex-1 gap-x-8 gap-y-2 lg:grid-cols-2">
@@ -476,13 +452,14 @@
                   />
                 {/if}
                 <span class="min-w-0 flex-1"
-                  ><span class="block text-xs font-medium">{insight.title}</span
-                  ><span class="mt-1 block text-[11px] text-ink/55"
+                  ><span class="block text-caption font-medium"
+                    >{insight.title}</span
+                  ><span class="mt-1 block text-xs text-subtle"
                     >{insight.detail}</span
                   ></span
                 >
                 <ChevronRight
-                  class="size-3.5 shrink-0 text-ink/40 transition group-hover:translate-x-0.5"
+                  class="size-3.5 shrink-0 text-subtle transition group-hover:translate-x-0.5"
                 />
               </button>
             {/each}

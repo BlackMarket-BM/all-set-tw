@@ -1,9 +1,6 @@
 <script lang="ts">
   import { createQuery } from "@tanstack/svelte-query";
   import { Search } from "@lucide/svelte";
-  import Card from "@/shared/ui/Card.svelte";
-  import CardHeader from "@/shared/ui/CardHeader.svelte";
-  import CardContent from "@/shared/ui/CardContent.svelte";
   import EmptyState from "@/shared/ui/EmptyState.svelte";
   import Input from "@/shared/ui/Input.svelte";
   import Select from "@/shared/ui/Select.svelte";
@@ -62,119 +59,155 @@
   }
 </script>
 
-{#if $investments.isPending}<EmptyState
-    title="載入投資中"
-    body="正在讀取投資持倉。"
-  />{:else}<div class="grid gap-5">
-    <div class="grid grid-cols-2 gap-3 md:grid-cols-3">
-      <div class="rounded-xl border border-ink/10 bg-white p-4 shadow-xs">
-        <p class="text-xs text-ink/45">持倉市值</p>
-        <p class="mt-2 text-xl font-bold">{formatCurrency(total)}</p>
-      </div>
-      <div class="rounded-xl border border-ink/10 bg-white p-4 shadow-xs">
-        <p class="text-xs text-ink/45">持倉數</p>
-        <p class="mt-2 text-xl font-bold">{positions.length}</p>
-      </div>
-      <div
-        class="hidden rounded-xl border border-ink/10 bg-white p-4 shadow-xs md:block"
+{#if $investments.isPending}
+  <EmptyState title="載入投資中" body="正在讀取投資持倉。" />
+{:else if $investments.isError || $rates.isError}
+  <EmptyState
+    alert
+    title="無法載入投資"
+    body="必要的投資或匯率資料目前無法取得，請稍後再試。"
+  />
+{:else}
+  <div class="grid min-w-0 gap-6">
+    <section class="min-w-0 pt-3 md:pt-2" aria-label="投資摘要">
+      <p class="text-sm text-subtle">持倉市值</p>
+      <p
+        class="mt-3 break-all text-[clamp(2rem,7vw,2.75rem)] leading-tight font-semibold tracking-tight tabular-nums"
       >
-        <p class="text-xs text-ink/45">交易筆數</p>
-        <p class="mt-2 text-xl font-bold">{$trades.data?.length ?? 0}</p>
+        {formatCurrency(total)}
+      </p>
+      <div class="mt-5 grid grid-cols-2 gap-3 md:gap-6">
+        <div class="min-w-0">
+          <p class="text-caption text-subtle">持倉數</p>
+          <p class="mt-2 text-lg font-medium tracking-tight tabular-nums">
+            {positions.length}
+          </p>
+        </div>
+        <div class="min-w-0">
+          <p class="text-caption text-subtle">交易筆數</p>
+          <p class="mt-2 text-lg font-medium tracking-tight tabular-nums">
+            {$trades.isError ? "—" : ($trades.data?.length ?? 0)}
+          </p>
+        </div>
       </div>
-    </div>
-    <Card
-      ><CardHeader class="gap-3"
-        ><div class="flex flex-wrap items-center justify-between gap-3">
-          <h2 class="text-lg font-semibold">投資持倉</h2>
-          <div class="relative w-52">
-            <Search
-              class="pointer-events-none absolute left-3 top-1/2 z-10 size-4 -translate-y-1/2 text-muted-foreground"
-            /><Input
-              class="pl-9"
-              placeholder="搜尋股票／基金"
-              bind:value={search}
-            />
-          </div>
-        </div></CardHeader
-      ><CardContent class="p-0"
-        ><div class="hidden overflow-x-auto md:block">
+    </section>
+
+    <section class="min-w-0 border-t border-ink/10 pt-5" aria-label="投資持倉">
+      <div class="flex flex-wrap items-center justify-between gap-3 pb-4">
+        <h2 class="text-base font-semibold">投資持倉</h2>
+        <div class="relative w-52">
+          <Search
+            class="pointer-events-none absolute left-3 top-1/2 z-10 size-4 -translate-y-1/2 text-subtle"
+          />
+          <Input
+            class="pl-9"
+            placeholder="搜尋股票／基金"
+            bind:value={search}
+          />
+        </div>
+      </div>
+      {#if positions.length === 0}
+        <p class="py-8 text-center text-sm text-subtle">
+          {search.trim() ? "沒有符合的持倉。" : "尚無投資持倉。"}
+        </p>
+      {:else}
+        <div class="hidden overflow-x-auto md:block">
           <table class="w-full text-left text-sm">
-            <thead class="border-y border-ink/8 bg-paper text-xs text-ink/50"
-              ><tr
-                ><th class="px-5 py-3">名稱</th><th class="px-5 py-3">類型</th
-                ><th class="px-5 py-3">數量</th><th class="px-5 py-3 text-right"
-                  >市值</th
-                ><th class="px-5 py-3">日期</th></tr
-              ></thead
-            ><tbody class="divide-y divide-ink/8"
-              >{#each positions as p (p.id)}<tr
-                  ><td class="px-5 py-3 font-semibold"
-                    >{p.symbol ? `${p.symbol} ` : ""}{p.name}</td
-                  ><td class="px-5 py-3">{p.assetType.toUpperCase()}</td><td
-                    class="px-5 py-3"
-                    >{p.quantity == null ? "-" : formatNumber(p.quantity)}</td
-                  ><td class="px-5 py-3 text-right font-semibold"
-                    >{formatCurrency(
+            <thead class="border-y border-ink/8 text-caption text-subtle">
+              <tr>
+                <th class="py-3 pr-4">名稱</th>
+                <th class="px-4 py-3">類型</th>
+                <th class="px-4 py-3">數量</th>
+                <th class="px-4 py-3 text-right">市值</th>
+                <th class="py-3 pl-4">日期</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-ink/8">
+              {#each positions as p (p.id)}
+                <tr>
+                  <td class="py-3 pr-4 font-semibold">
+                    {p.symbol ? `${p.symbol} ` : ""}{p.name}
+                  </td>
+                  <td class="px-4 py-3">{p.assetType.toUpperCase()}</td>
+                  <td class="px-4 py-3">
+                    {p.quantity == null ? "-" : formatNumber(p.quantity)}
+                  </td>
+                  <td class="px-4 py-3 text-right font-semibold tabular-nums">
+                    {formatCurrency(
                       (p.marketValue ?? 0) + (p.cashBalance ?? 0),
                       p.currency,
-                    )}</td
-                  ><td class="px-5 py-3 text-xs text-ink/50"
-                    >{formatDate(p.asOfDate)}</td
-                  ></tr
-                >{/each}</tbody
-            >
+                    )}
+                  </td>
+                  <td class="py-3 pl-4 text-caption text-subtle">
+                    {formatDate(p.asOfDate)}
+                  </td>
+                </tr>
+              {/each}
+            </tbody>
           </table>
         </div>
         <div class="divide-y divide-ink/8 md:hidden">
-          {#each positions as p (p.id)}<div
-              class="flex items-center justify-between gap-3 px-4 py-3"
-            >
+          {#each positions as p (p.id)}
+            <div class="flex items-center justify-between gap-3 py-3">
               <div class="min-w-0">
                 <p class="truncate font-semibold">
                   {p.symbol ? `${p.symbol} ` : ""}{p.name}
                 </p>
-                <p class="mt-1 text-xs text-ink/45">
+                <p class="mt-1 text-caption text-subtle">
                   {p.quantity ?? 0} 單位 · {p.assetType.toUpperCase()}
                 </p>
               </div>
-              <p class="shrink-0 font-bold text-steel">
+              <p class="shrink-0 font-medium tabular-nums text-steel">
                 {formatCurrency(
                   (p.marketValue ?? 0) + (p.cashBalance ?? 0),
                   p.currency,
                 )}
               </p>
-            </div>{/each}
-        </div></CardContent
-      ></Card
-    ><Card
-      ><CardHeader class="flex-row items-center justify-between"
-        ><h2 class="text-lg font-semibold">交易紀錄</h2>
-        <Select class="w-36" bind:value={tradeType}
-          ><option value="all">全部類型</option><option value="stock"
-            >股票</option
-          ><option value="etf">ETF</option><option value="fund">基金</option
-          ></Select
-        ></CardHeader
-      ><CardContent class="p-0"
-        ><div class="divide-y divide-ink/8">
-          {#each filteredTrades as t (t.id)}<div
-              class="flex items-center justify-between gap-3 px-5 py-3 text-sm"
-            >
+            </div>
+          {/each}
+        </div>
+      {/if}
+    </section>
+
+    <section class="min-w-0 border-t border-ink/10 pt-5" aria-label="交易紀錄">
+      <div class="flex flex-wrap items-center justify-between gap-3 pb-4">
+        <h2 class="text-base font-semibold">交易紀錄</h2>
+        <Select class="w-36" bind:value={tradeType}>
+          <option value="all">全部類型</option>
+          <option value="stock">股票</option>
+          <option value="etf">ETF</option>
+          <option value="fund">基金</option>
+        </Select>
+      </div>
+      {#if $trades.isPending}
+        <p class="py-8 text-center text-sm text-subtle">正在載入交易紀錄。</p>
+      {:else if $trades.isError}
+        <p class="py-8 text-center text-sm text-coral">
+          交易紀錄暫時無法載入。
+        </p>
+      {:else if filteredTrades.length === 0}
+        <p class="py-8 text-center text-sm text-subtle">尚無交易紀錄。</p>
+      {:else}
+        <div class="divide-y divide-ink/8">
+          {#each filteredTrades as t (t.id)}
+            <div class="flex items-center justify-between gap-3 py-3 text-sm">
               <div class="min-w-0">
                 <p class="truncate font-semibold">
                   {t.name ?? t.symbol ?? "投資交易"}
                 </p>
-                <p class="text-xs text-ink/45">
+                <p class="mt-1 text-caption text-subtle">
                   {t.transactionName ?? t.transactionCode ?? ""} · {formatDate(
                     t.tradeDate ?? t.postedDate,
                   )}
                 </p>
               </div>
-              <span class="shrink-0 font-semibold text-ink/65"
-                >{tradeDisplay(t)}</span
-              >
-            </div>{/each}
-        </div></CardContent
-      ></Card
-    >
-  </div>{/if}
+              <span class="shrink-0 font-medium tabular-nums">
+                {tradeDisplay(t)}
+              </span>
+            </div>
+          {/each}
+        </div>
+      {/if}
+    </section>
+  </div>
+{/if}

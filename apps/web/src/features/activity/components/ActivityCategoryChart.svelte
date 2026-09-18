@@ -55,10 +55,10 @@
       >
         {title}
       </h3>
-      <p class="mt-1 text-xs text-ink/45">點選分類查看該月活動</p>
+      <p class="mt-1 text-caption text-subtle">點選分類查看該月活動</p>
     </div>
     <p
-      class={`shrink-0 text-lg font-medium tracking-tight tabular-nums ${flow === "income" ? "text-moss" : "text-coral"}`}
+      class={`min-w-0 max-w-[58%] break-all text-right text-lg font-medium tracking-tight tabular-nums ${flow === "income" ? "text-moss" : "text-coral"}`}
     >
       {#if dataIncomplete}—{:else}{flow === "income"
           ? "+"
@@ -73,7 +73,7 @@
         活動資料尚未完整載入，分類比例暫不計算。
       </div>
     {:else if slices.length === 0}
-      <p class="py-8 text-center text-sm text-ink/45">
+      <p class="py-8 text-center text-sm text-subtle">
         此月份沒有{flow === "income" ? "收入" : "支出"}活動
       </p>
     {:else}
@@ -94,7 +94,7 @@
               {tooltip}
               onArcClick={(_, detail) =>
                 onSelect((detail.data as ActivityCategorySlice).category)}
-              props={{ arc: { stroke: "white", strokeWidth: 2 } }}
+              props={{ arc: { stroke: "#f7f7f2", strokeWidth: 2 } }}
             />
           </ChartContainer>
           <button
@@ -104,7 +104,7 @@
             class={`absolute left-1/2 top-1/2 z-10 flex size-20 -translate-x-1/2 -translate-y-1/2 flex-col items-center justify-center rounded-full transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-steel focus-visible:ring-offset-2 ${flowSelected ? "bg-steel/10 ring-2 ring-steel/25" : "hover:bg-ink/3"}`}
             onclick={onSelectFlow}
           >
-            <span class="text-[11px] font-semibold text-steel">
+            <span class="text-xs font-semibold text-steel">
               {flowSelected ? "顯示全部" : `查看${flowLabel}`}
             </span>
             <span class="mt-0.5 text-sm font-medium tabular-nums"
@@ -127,10 +127,10 @@
                 >{slice.category}</span
               >
               <span class="text-right">
-                <span class="block text-xs font-medium tabular-nums"
+                <span class="block text-caption font-medium tabular-nums"
                   >{slice.percentage.toFixed(1)}%</span
                 >
-                <span class="block text-[10px] text-ink/40 tabular-nums"
+                <span class="block text-caption text-subtle tabular-nums"
                   >{formatCurrency(slice.amount)}</span
                 >
               </span>

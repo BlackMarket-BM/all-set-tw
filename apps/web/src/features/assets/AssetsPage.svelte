@@ -98,6 +98,7 @@
   />
 {:else if failed}
   <EmptyState
+    alert
     title="無法載入資產清冊"
     body="部分必要資料目前無法取得，請稍後再試。"
   />
@@ -109,7 +110,7 @@
         role="status"
       >
         <p class="font-semibold">部分外幣資產尚未納入新台幣總額</p>
-        <p class="mt-1 text-xs text-ink/55">
+        <p class="mt-1 text-caption text-subtle">
           缺少 {summary.missingCurrencies.join("、")} 匯率；原始幣別金額仍會顯示在清冊中。
         </p>
       </div>
@@ -117,64 +118,64 @@
 
     <section class="min-w-0 pt-3 md:pt-2" aria-label="淨資產">
       <div>
-        <p class="text-sm text-ink/60">淨資產</p>
+        <p class="text-sm text-subtle">淨資產</p>
         <p
-          class="mt-3 break-all text-[clamp(2rem,7vw,3rem)] leading-tight font-medium tracking-tight tabular-nums"
+          class="mt-3 break-all text-[clamp(2rem,7vw,2.75rem)] leading-tight font-semibold tracking-tight tabular-nums"
         >
           {formatCurrency(summary.netWorth)}
         </p>
-        <p class="mt-3 text-xs text-ink/55">
+        <p class="mt-3 text-caption text-subtle">
           {summary.hasUnknownCardBalance
             ? "信用卡負債資料不完整"
             : `已扣除 ${formatCurrency(summary.cardDebt)} 信用卡負債`}
         </p>
       </div>
-      <div class="mt-5 grid grid-cols-3 gap-3 md:gap-6">
+      <div class="mt-6 grid grid-cols-3 gap-3 md:gap-6">
         <div class="min-w-0">
-          <p class="text-xs text-ink/60">銀行與現金</p>
+          <p class="text-caption text-subtle">銀行與現金</p>
           <p
-            class="mt-2 text-lg font-medium tracking-tight text-steel tabular-nums md:hidden"
+            class="mt-2 text-lg font-medium tracking-tight tabular-nums md:hidden"
           >
             {formatCompactTwd(summary.bankTotal)}
           </p>
           <p
-            class="mt-2 hidden break-all text-xl font-medium tracking-tight text-steel tabular-nums md:block 2xl:text-2xl"
+            class="mt-2 hidden break-all text-2xl font-semibold tracking-tight tabular-nums md:block"
           >
             {formatCurrency(summary.bankTotal)}
           </p>
-          <p class="mt-1 text-[11px] text-ink/55 md:text-xs">
+          <p class="mt-1 text-caption text-subtle">
             {summary.deposits.length} 個帳戶
           </p>
         </div>
         <div class="min-w-0">
-          <p class="text-xs text-ink/60">投資</p>
+          <p class="text-caption text-subtle">投資</p>
           <p
-            class="mt-2 text-lg font-medium tracking-tight text-steel tabular-nums md:hidden"
+            class="mt-2 text-lg font-medium tracking-tight tabular-nums md:hidden"
           >
             {formatCompactTwd(summary.investmentTotal)}
           </p>
           <p
-            class="mt-2 hidden break-all text-xl font-medium tracking-tight text-steel tabular-nums md:block 2xl:text-2xl"
+            class="mt-2 hidden break-all text-2xl font-semibold tracking-tight tabular-nums md:block"
           >
             {formatCurrency(summary.investmentTotal)}
           </p>
-          <p class="mt-1 text-[11px] text-ink/55 md:text-xs">
+          <p class="mt-1 text-caption text-subtle">
             {$investments.data?.length ?? 0} 個持倉
           </p>
         </div>
         <div class="min-w-0">
-          <p class="text-xs text-ink/60">其他資產</p>
+          <p class="text-caption text-subtle">其他資產</p>
           <p
             class="mt-2 text-lg font-medium tracking-tight tabular-nums md:hidden"
           >
             {formatCompactTwd(summary.manualTotal)}
           </p>
           <p
-            class="mt-2 hidden break-all text-xl font-medium tracking-tight tabular-nums md:block 2xl:text-2xl"
+            class="mt-2 hidden break-all text-2xl font-semibold tracking-tight tabular-nums md:block"
           >
             {formatCurrency(summary.manualTotal)}
           </p>
-          <p class="mt-1 text-[11px] text-ink/55 md:text-xs">
+          <p class="mt-1 text-caption text-subtle">
             {$manual.data?.length ?? 0} 筆
           </p>
         </div>
@@ -199,17 +200,19 @@
           >
             <div>
               <h2 class="font-semibold">帳戶與資產</h2>
-              <p class="mt-1 text-xs text-ink/50">
+              <p class="mt-1 text-caption text-subtle">
                 同一金融機構的帳戶與信用卡合併顯示
               </p>
             </div>
-            <span class="text-xs text-ink/50">
+            <span class="text-caption text-subtle">
               {ledgerItems.length} 項
             </span>
           </header>
           <div class="min-h-0 flex-1 overflow-y-auto">
             {#if summary.institutionGroups.length > 0}
-              <p class="px-3 py-2 text-xs font-medium text-ink/50">金融機構</p>
+              <p class="px-3 py-2 text-caption font-medium text-subtle">
+                金融機構
+              </p>
               {#each summary.institutionGroups as group (group.key)}
                 <button
                   class={`grid min-h-[68px] w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-3 border-b border-ink/8 px-3 py-2 text-left transition hover:bg-ink/3 ${activeKey === group.key ? "bg-ink/4 shadow-[inset_3px_0_0_var(--color-steel)]" : ""}`}
@@ -221,7 +224,7 @@
                     <strong class="block truncate text-sm">
                       {group.institution}
                     </strong>
-                    <small class="mt-1 block truncate text-xs text-ink/45">
+                    <small class="mt-1 block truncate text-caption text-subtle">
                       {group.accounts.length} 帳戶 · {group.cards.length} 卡片{group
                         .foreignCurrencies.length
                         ? ` · 含 ${group.foreignCurrencies.join("、")}`
@@ -235,7 +238,7 @@
                         : "—"}
                     </strong>
                     <small
-                      class={`mt-1 block text-xs tabular-nums ${group.cards.length ? "text-coral" : "text-ink/40"}`}
+                      class={`mt-1 block text-caption tabular-nums ${group.cards.length ? "text-coral" : "text-subtle"}`}
                     >
                       {group.cards.length
                         ? group.hasUnknownCardBalance
@@ -257,7 +260,7 @@
               >
                 <span class="min-w-0">
                   <strong class="block text-sm">投資</strong>
-                  <small class="mt-1 block text-xs text-ink/45">
+                  <small class="mt-1 block text-caption text-subtle">
                     {$investments.data?.length ?? 0} 個持倉 · 持倉與交易紀錄
                   </small>
                 </span>
@@ -276,7 +279,7 @@
               >
                 <span class="min-w-0">
                   <strong class="block text-sm">其他資產</strong>
-                  <small class="mt-1 block text-xs text-ink/45">
+                  <small class="mt-1 block text-caption text-subtle">
                     {$manual.data?.length ?? 0} 筆 · 手動維護估值
                   </small>
                 </span>
@@ -318,7 +321,7 @@
           <div class="flex items-start justify-between gap-3 pb-1">
             <div class="min-w-0">
               <h2 class="text-base font-semibold">金融機構</h2>
-              <p class="mt-1 text-xs text-ink/45">
+              <p class="mt-1 text-caption text-subtle">
                 {summary.institutionGroups.length} 個機構
               </p>
             </div>
@@ -344,7 +347,7 @@
                   <strong class="block truncate text-sm">
                     {group.institution}
                   </strong>
-                  <small class="mt-1 block truncate text-xs text-ink/45">
+                  <small class="mt-1 block truncate text-caption text-subtle">
                     {group.accounts.length} 帳戶 · {group.cards.length} 卡片{group
                       .foreignCurrencies.length
                       ? ` · 含 ${group.foreignCurrencies.join("、")}`
@@ -358,7 +361,7 @@
                       : "—"}
                   </strong>
                   <small
-                    class={`mt-1 block text-xs tabular-nums ${group.cards.length ? "text-coral" : "text-ink/40"}`}
+                    class={`mt-1 block text-caption tabular-nums ${group.cards.length ? "text-coral" : "text-subtle"}`}
                   >
                     {group.cards.length
                       ? group.hasUnknownCardBalance
@@ -368,7 +371,7 @@
                   </small>
                 </span>
                 <ChevronRight
-                  class={`size-4 text-ink/40 transition ${mobileExpandedKey === group.key ? "rotate-90" : ""}`}
+                  class={`size-4 text-subtle transition ${mobileExpandedKey === group.key ? "rotate-90" : ""}`}
                 />
               </button>
               {#if mobileExpandedKey === group.key}
@@ -391,7 +394,7 @@
             <div class="flex items-start justify-between gap-3 pb-1">
               <div class="min-w-0">
                 <h2 class="text-base font-semibold">投資</h2>
-                <p class="mt-1 text-xs text-ink/45">
+                <p class="mt-1 text-caption text-subtle">
                   {$investments.data?.length ?? 0} 個持倉 · 交易紀錄
                 </p>
               </div>
@@ -416,7 +419,7 @@
           <div class="flex items-start justify-between gap-3 pb-1">
             <div class="min-w-0">
               <h2 class="text-base font-semibold">其他資產</h2>
-              <p class="mt-1 text-xs text-ink/45">
+              <p class="mt-1 text-caption text-subtle">
                 {$manual.data?.length ?? 0} 筆 · 估值歷史
               </p>
             </div>

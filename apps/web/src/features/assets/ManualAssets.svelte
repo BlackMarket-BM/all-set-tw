@@ -312,9 +312,9 @@
         class={`flex flex-wrap items-end justify-between gap-3 ${variant === "embedded" ? "px-4 pt-4" : ""}`}
       >
         <div>
-          <p class="text-sm text-ink/50">其他資產總額</p>
+          <p class="text-sm text-subtle">其他資產總額</p>
           <p
-            class={`mt-1 font-bold tabular-nums ${variant === "embedded" ? "text-xl" : "text-3xl"}`}
+            class={`mt-1 font-semibold tracking-tight tabular-nums ${variant === "embedded" ? "text-xl" : "text-3xl"}`}
           >
             {formatCurrency(total)}
           </p>
@@ -336,11 +336,7 @@
         </div>
       </div>
     {/if}
-    <Card
-      class={variant === "embedded"
-        ? "border-0 bg-transparent shadow-none"
-        : ""}
-    >
+    <Card class="border-0 bg-transparent shadow-none">
       {#if !hideSummary}
         <CardHeader class={variant === "embedded" ? "px-4" : ""}
           ><h2 class="text-lg font-semibold">
@@ -351,7 +347,7 @@
       <CardContent class="p-0">
         <div class="divide-y divide-ink/8">
           {#if ($assets.data ?? []).length === 0}
-            <p class="p-8 text-center text-sm text-ink/50">尚無其他資產。</p>
+            <p class="p-8 text-center text-sm text-subtle">尚無其他資產。</p>
           {:else}
             {#each $assets.data ?? [] as asset (asset.id)}
               <div class={hideSummary ? "" : "px-5 py-4"}>
@@ -366,7 +362,9 @@
                       <strong class="block truncate text-sm"
                         >{asset.name}</strong
                       >
-                      <small class="mt-1 block truncate text-xs text-ink/45">
+                      <small
+                        class="mt-1 block truncate text-caption text-subtle"
+                      >
                         {categories[
                           asset.category as keyof typeof categories
                         ] ?? asset.category} · {asset.currency} · {asset.date
@@ -378,16 +376,16 @@
                       {formatCurrency(asset.value ?? 0, asset.currency)}
                     </strong>
                     <ChevronRight
-                      class={`size-4 text-ink/40 transition ${expandedAssetId === asset.id ? "rotate-90" : ""}`}
+                      class={`size-4 text-subtle transition ${expandedAssetId === asset.id ? "rotate-90" : ""}`}
                     />
                   </button>
                   <button
-                    class="rounded-sm p-1 text-ink/40 hover:text-steel"
+                    class="rounded-sm p-1 text-subtle hover:text-steel"
                     aria-label="編輯資產"
                     onclick={() => startEdit(asset)}
                     ><Pencil class="size-4" /></button
                   ><button
-                    class="rounded-sm p-1 text-ink/40 hover:text-coral"
+                    class="rounded-sm p-1 text-subtle hover:text-coral"
                     aria-label="刪除資產"
                     onclick={() => requestDeleteAsset(asset)}
                     ><Trash2 class="size-4" /></button
@@ -397,14 +395,14 @@
                   <div class="mt-4 rounded-lg bg-paper/70 p-3">
                     <div class="flex items-center justify-between">
                       <h3 class="text-sm font-semibold">估值歷史</h3>
-                      <span class="text-xs text-ink/45"
+                      <span class="text-caption text-subtle"
                         >{($history.data ?? []).length} 筆</span
                       >
                     </div>
-                    {#if $history.isPending}<p class="mt-3 text-sm text-ink/45">
+                    {#if $history.isPending}<p class="mt-3 text-sm text-subtle">
                         載入歷史中…
                       </p>{:else if ($history.data ?? []).length === 0}<p
-                        class="mt-3 text-sm text-ink/45"
+                        class="mt-3 text-sm text-subtle"
                       >
                         尚無歷史紀錄。
                       </p>{:else}
@@ -468,13 +466,13 @@
                     <div
                       class="mt-3 flex flex-wrap items-end gap-2 border-t border-ink/8 pt-3"
                     >
-                      <label class="grid gap-1 text-xs text-ink/55"
+                      <label class="grid gap-1 text-caption text-subtle"
                         >估值（{asset.currency}）<Input
                           class="w-32"
                           type="number"
                           bind:value={historyValue}
                         /></label
-                      ><label class="grid gap-1 text-xs text-ink/55"
+                      ><label class="grid gap-1 text-caption text-subtle"
                         >日期<Input
                           type="date"
                           bind:value={historyDate}
@@ -580,7 +578,7 @@
           <h2 id="delete-confirmation-title" class="text-lg font-semibold">
             {deletingAsset ? "確定刪除資產？" : "確定刪除估值？"}
           </h2>
-          <p class="mt-2 text-sm leading-6 text-ink/60">
+          <p class="mt-2 text-sm leading-6 text-subtle">
             {#if deletingAsset}
               「{deletingAsset.name}」與全部估值歷史將永久刪除，無法復原。
             {:else if deletingHistory}

@@ -48,7 +48,10 @@ test("shows a retry action when a lazy page fails to load", async ({
   });
 
   await page.goto("/#/activity");
-  await expect(page.getByText("頁面載入失敗，請再試一次。")).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "頁面載入失敗", exact: true }),
+  ).toBeVisible();
+  await expect(page.getByText("請再試一次。", { exact: true })).toBeVisible();
 
   await page.unroute(activityPageRoute);
   await page.getByRole("button", { name: "重新載入", exact: true }).click();

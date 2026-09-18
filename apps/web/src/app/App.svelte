@@ -8,6 +8,7 @@
   import { swipeBack } from "@/shared/actions/swipe-back";
   import { moneyState } from "@/shared/state/money-visibility.svelte";
   import Button from "@/shared/ui/Button.svelte";
+  import EmptyState from "@/shared/ui/EmptyState.svelte";
   import Icon from "@/shared/ui/Icon.svelte";
   import {
     detailLabels,
@@ -192,19 +193,19 @@
 
     <div class="min-w-0 pb-20">
       <div
-        class="no-scrollbar hidden border-b border-ink/10 bg-white px-4 py-2 md:flex md:gap-1 md:overflow-x-auto xl:hidden"
+        class="no-scrollbar hidden border-b border-ink/10 bg-paper px-4 py-2 md:flex md:gap-1 md:overflow-x-auto xl:hidden"
       >
         {#each navItems as item (item.view)}
           {@const NavIcon = item.icon}
           <button
-            class={`flex min-h-10 items-center gap-2 rounded-lg px-3 text-sm font-medium ${primaryView === item.view ? "bg-ink text-white" : "text-ink/60 hover:bg-ink/5"}`}
+            class={`flex min-h-10 items-center gap-2 rounded-lg px-3 text-sm font-medium ${primaryView === item.view ? "bg-ink text-white" : "text-subtle hover:bg-ink/5"}`}
             onclick={() => navigate(item.view)}
             ><NavIcon class="size-4" />{item.label}</button
           >
         {/each}
       </div>
       <header
-        class="sticky top-0 z-20 border-b border-ink/10 bg-white/95 backdrop-blur-sm xl:static xl:bg-transparent xl:backdrop-blur-0"
+        class="sticky top-0 z-20 border-b border-ink/10 bg-paper/95 backdrop-blur-sm xl:static xl:bg-transparent xl:backdrop-blur-0"
       >
         <div
           class="mx-auto flex max-w-[1440px] flex-col gap-3 px-4 py-4 sm:px-6 xl:px-8 xl:py-6"
@@ -248,7 +249,7 @@
                   >
                 </h1>
               {/if}
-              <p class="mt-1 hidden text-sm text-ink/55 md:block">
+              <p class="mt-1 hidden text-sm leading-6 text-subtle md:block">
                 {detail?.description ??
                   mobileSetting?.description ??
                   currentView.description}
@@ -280,11 +281,7 @@
           <Overview {api} {navigate} />
         {:else}
           {#await pagePromise}
-            <div
-              class="flex min-h-64 items-center justify-center text-sm text-ink/50"
-            >
-              載入頁面中…
-            </div>
+            <EmptyState title="載入頁面中" body="正在準備內容。" />
           {:then module}
             {#if module}
               {#if view === "assets"}
@@ -320,12 +317,15 @@
               {/if}
             {/if}
           {:catch}
-            <div
-              class="flex min-h-64 flex-col items-center justify-center gap-3"
-            >
-              <p class="text-sm text-coral">頁面載入失敗，請再試一次。</p>
-              <Button variant="outline" onclick={retryPage}>重新載入</Button>
-            </div>
+            <section class="min-w-0 py-16" role="alert" aria-live="assertive">
+              <h2 class="text-base font-semibold tracking-tight">
+                頁面載入失敗
+              </h2>
+              <p class="mt-2 text-caption text-subtle">請再試一次。</p>
+              <Button class="mt-5" variant="outline" onclick={retryPage}
+                >重新載入</Button
+              >
+            </section>
           {/await}
         {/if}
       </main>

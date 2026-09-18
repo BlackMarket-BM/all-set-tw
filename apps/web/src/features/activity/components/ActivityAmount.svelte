@@ -24,7 +24,7 @@
   );
 </script>
 
-<span class="block" class:text-xs={original != null && twd == null}>
+<span class="block" class:text-caption={original != null && twd == null}>
   {#if original == null}—
   {:else if moneyState.hidden}••••••
   {:else if twd == null}台幣金額暫無法換算
@@ -33,11 +33,13 @@
       : ""}{formatCurrency(twd)}{/if}
 </span>
 {#if foreign}
-  <span class="mt-1 block text-xs font-normal text-ink/50"
+  <span class="mt-1 block text-caption font-normal text-subtle"
     >原幣 {formatCurrency(original!, item.currency)}</span
   >
   {#if detail && twd != null && rate}
-    <span class="mt-1 block whitespace-normal text-xs font-normal text-ink/50">
+    <span
+      class="mt-1 block whitespace-normal text-caption font-normal text-subtle"
+    >
       1 {item.currency} = {new Intl.NumberFormat("zh-TW", {
         maximumSignificantDigits: 6,
       }).format(rate.rateTwd)} TWD<br />

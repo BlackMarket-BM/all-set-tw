@@ -44,7 +44,7 @@
     <h2 class="text-xl font-semibold" id="calculation-update-title">
       排除統計計算
     </h2>
-    <p class="mt-1 text-sm text-ink/50">
+    <p class="mt-1 text-sm text-subtle">
       將保留「{update.item.title}」，但不計入收支與圖表。
     </p>
 
@@ -72,7 +72,7 @@
         <span class="block font-semibold">
           {updatesExistingRule ? "同時修改目前分類規則" : "同時新增分類規則"}
         </span>
-        <span class="mt-1 block text-xs text-ink/50">
+        <span class="mt-1 block text-caption text-subtle">
           {updatesExistingRule
             ? "之後符合目前規則的活動也會使用所選分類並排除計算。"
             : "之後符合新規則的活動也會使用所選分類並排除計算。"}
@@ -89,13 +89,13 @@
           <option value="equals">交易文字完全等於</option>
         </Select>
         <Input bind:value={update.pattern} />
-        <p class="text-xs font-semibold text-steel">
+        <p class="text-caption font-semibold text-steel">
           目前載入的活動中有 {matchCount} 筆符合
         </p>
       </div>
     {:else if update.applyRule}
       <p
-        class="mt-4 rounded-xl border border-steel/20 bg-steel/5 p-4 text-xs font-medium text-steel"
+        class="mt-4 rounded-xl border border-steel/20 bg-steel/5 p-4 text-caption font-medium text-steel"
       >
         這會修改既有的使用者規則，並影響所有符合該規則的活動。
       </p>

@@ -161,7 +161,7 @@
       </h2>
       {#if chartData.length > 0}
         <span
-          class={`inline-flex items-center gap-1 py-1 text-xs font-semibold ${changeValue >= 0 ? "text-moss" : "text-coral"}`}
+          class={`inline-flex items-center gap-1 py-1 text-caption font-semibold ${changeValue >= 0 ? "text-moss" : "text-coral"}`}
         >
           {#if changeValue >= 0}<ArrowUpRight
               class="size-3.5"
@@ -173,11 +173,11 @@
     <div class="flex flex-wrap items-start justify-between gap-x-2 gap-y-3">
       <div class="min-w-0">
         <TabsList
-          class="grid h-10 grid-cols-5 border-0 bg-transparent p-0.5 text-xs"
+          class="grid h-11 grid-cols-5 border-0 bg-transparent p-0.5 text-caption"
         >
           {#each timeframes as option (option)}
             <TabsTrigger
-              class="h-9 px-2.5 py-1 text-xs"
+              class="h-10 px-2.5 py-1 text-sm"
               active={timeframe === option}
               onclick={() => (timeframe = option)}
               >{option === "ALL" ? "全部" : option}</TabsTrigger
@@ -190,7 +190,7 @@
         aria-expanded={settingsOpen}
         aria-controls="net-worth-display-settings"
         onclick={() => (settingsOpen = !settingsOpen)}
-        class="flex min-h-10 cursor-pointer items-center gap-1.5 text-xs text-ink/60"
+        class="flex min-h-10 cursor-pointer items-center gap-1.5 text-caption text-subtle"
       >
         顯示設定 <ChevronDown
           class={`size-3.5 transition-transform ${settingsOpen ? "rotate-180" : ""}`}
@@ -205,12 +205,12 @@
           class="flex flex-wrap items-center gap-1.5"
           aria-label="資產類型篩選"
         >
-          <span class="text-xs font-medium text-ink/40">包含</span>
+          <span class="text-caption font-medium text-subtle">包含</span>
           {#each NET_WORTH_ASSET_SERIES as option (option.key)}
             {@const active = includedAssets.includes(option.key)}
             {@const available = availableAssets.has(option.key)}
             <button
-              class={`flex items-center gap-1.5 rounded-md px-2 py-2 text-xs font-medium transition ${active && available ? "bg-ink/5 text-ink" : "bg-transparent text-ink/45"} ${available ? "hover:bg-ink/5 hover:text-steel" : "cursor-not-allowed opacity-40"}`}
+              class={`flex items-center gap-1.5 rounded-md px-2 py-2 text-caption font-medium transition ${active && available ? "bg-ink/5 text-ink" : "bg-transparent text-subtle"} ${available ? "hover:bg-ink/5 hover:text-steel" : "cursor-not-allowed opacity-40"}`}
               disabled={!available}
               aria-pressed={active}
               onclick={() => toggleAsset(option.key)}
@@ -221,10 +221,10 @@
             >
           {/each}
         </div>
-        <TabsList class="h-9 border-0 p-0.5 text-xs">
+        <TabsList class="h-9 border-0 p-0.5 text-caption">
           {#each [{ key: "sum", label: "總和" }, { key: "breakdown", label: "分類" }] as option (option.key)}
             <TabsTrigger
-              class="h-7 px-2 py-0.5 text-xs"
+              class="h-8 px-2 py-0.5 text-sm"
               active={displayMode === option.key}
               onclick={() => (displayMode = option.key as NetWorthDisplayMode)}
               >{option.label}</TabsTrigger
@@ -236,12 +236,12 @@
   </div>
   <div class="min-w-0 overflow-hidden">
     {#if loading}
-      <div class="flex h-64 items-center justify-center text-sm text-ink/45">
+      <div class="flex h-64 items-center justify-center text-sm text-subtle">
         載入趨勢中…
       </div>
     {:else if chartData.length === 0}
       <div
-        class="flex h-64 items-center justify-center rounded-lg bg-ink/2 text-sm text-ink/45"
+        class="flex h-64 items-center justify-center rounded-lg bg-ink/2 text-sm text-subtle"
       >
         尚無淨資產歷史資料。
       </div>
@@ -279,7 +279,7 @@
       </ChartContainer>
       <div class="mt-2 flex min-w-0 flex-wrap items-center gap-3 pt-3">
         {#if displayMode === "breakdown"}
-          <div class="flex flex-wrap gap-x-4 gap-y-2 text-xs text-ink/55">
+          <div class="flex flex-wrap gap-x-4 gap-y-2 text-caption text-subtle">
             <span class="inline-flex items-center gap-1.5"
               ><span class="w-4 border-t-2 border-dashed border-ink"
               ></span>總和</span
@@ -294,16 +294,16 @@
             {/each}
           </div>
         {:else}
-          <span class="text-xs text-ink/45">已選資產的每日合計</span>
+          <span class="text-caption text-subtle">已選資產的每日合計</span>
         {/if}
       </div>
       <details class="group mt-4 border-t border-ink/8 pt-3">
         <summary
-          class="flex min-h-10 cursor-pointer list-none flex-wrap items-center justify-between gap-2 text-xs [&::-webkit-details-marker]:hidden"
+          class="flex min-h-10 cursor-pointer list-none flex-wrap items-center justify-between gap-2 text-caption [&::-webkit-details-marker]:hidden"
         >
-          <span class="text-ink/60">
+          <span class="text-subtle">
             {comparisonOption?.label ?? "較昨日"}
-            <span class="ml-2 font-medium text-ink/80">
+            <span class="ml-2 font-medium text-ink">
               {#if !comparison}尚無有效快照
               {:else if comparison.changeValue === 0}持平
               {:else}{comparison.changeValue > 0 ? "+" : ""}{formatCurrency(
@@ -311,7 +311,7 @@
                 )}{/if}
             </span>
           </span>
-          <span class="flex items-center gap-1.5 text-ink/60"
+          <span class="flex items-center gap-1.5 text-subtle"
             >比較明細 <ChevronDown
               class="size-3.5 transition-transform group-open:rotate-180"
             /></span
@@ -321,11 +321,13 @@
           class="mt-3 grid min-w-0 gap-3 md:grid-cols-[auto_minmax(18rem,28rem)] md:items-start md:justify-between"
         >
           <div class="flex min-w-0 flex-wrap items-center gap-2">
-            <span class="shrink-0 text-xs font-semibold text-ink/50">比較</span>
-            <TabsList class="grid h-8 grid-cols-3 border-0 p-0.5 text-xs">
+            <span class="shrink-0 text-caption font-semibold text-subtle"
+              >比較</span
+            >
+            <TabsList class="grid h-9 grid-cols-3 border-0 p-0.5 text-caption">
               {#each NET_WORTH_COMPARISON_PERIODS as option (option.key)}
                 <TabsTrigger
-                  class="h-7 px-2 py-0.5 text-xs"
+                  class="h-8 px-2 py-0.5 text-sm"
                   active={comparisonPeriod === option.key}
                   onclick={() => (comparisonPeriod = option.key)}
                   >{option.label}</TabsTrigger
@@ -339,9 +341,9 @@
               <div
                 class="grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-baseline gap-3"
               >
-                <span class="text-ink/45">目前</span>
+                <span class="text-subtle">目前</span>
                 <span
-                  class="whitespace-nowrap text-right font-semibold text-ink/70 tabular-nums sm:text-base"
+                  class="whitespace-nowrap text-right font-semibold tabular-nums sm:text-base"
                   >{formatCurrency(comparison.currentValue)}</span
                 >
               </div>
@@ -349,24 +351,24 @@
                 class="grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-3"
               >
                 <span class="min-w-0">
-                  <span class="block font-medium text-ink/50"
+                  <span class="block font-medium text-subtle"
                     >{comparisonOption.label}</span
                   >
-                  <span class="mt-0.5 block text-xs text-ink/40">
+                  <span class="mt-0.5 block text-caption text-subtle">
                     {formatDate(comparison.previousDate)}
                   </span>
                 </span>
                 <span
-                  class="whitespace-nowrap text-right font-semibold text-ink/70 tabular-nums sm:text-base"
+                  class="whitespace-nowrap text-right font-semibold tabular-nums sm:text-base"
                   >{formatCurrency(comparison.previousValue)}</span
                 >
               </div>
               <div
                 class="grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-baseline gap-3 border-t border-ink/8 pt-1.5"
               >
-                <span class="font-semibold text-ink/50">變化</span>
+                <span class="font-semibold text-subtle">變化</span>
                 <span
-                  class={`whitespace-nowrap text-right font-semibold tabular-nums sm:text-base ${comparison.changeValue > 0 ? "text-moss" : comparison.changeValue < 0 ? "text-coral" : "text-ink/55"}`}
+                  class={`whitespace-nowrap text-right font-semibold tabular-nums sm:text-base ${comparison.changeValue > 0 ? "text-moss" : comparison.changeValue < 0 ? "text-coral" : "text-subtle"}`}
                 >
                   {comparison.changeValue < 0
                     ? ""
@@ -382,7 +384,7 @@
               </div>
             </div>
           {:else}
-            <p class="text-xs text-ink/40">
+            <p class="text-caption text-subtle">
               尚無{comparisonOption?.label ?? "目標"}的有效快照
             </p>
           {/if}
