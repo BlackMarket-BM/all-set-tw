@@ -77,14 +77,14 @@
 </script>
 
 {#snippet fields()}
-  <label class="grid gap-1 text-xs text-ink/60"
+  <label class="grid gap-1 text-caption text-subtle"
     >時間範圍<Select aria-label="搜尋時間範圍" class="h-11" bind:value={time}
       >{#each times as option}<option value={option.id}>{option.label}</option
         >{/each}</Select
     ></label
   >
   {#if time === "custom"}
-    <label class="grid min-w-0 gap-1 text-xs text-ink/60"
+    <label class="grid min-w-0 gap-1 text-caption text-subtle"
       >開始日期<Input
         aria-label="搜尋開始日期"
         type="date"
@@ -92,7 +92,7 @@
         bind:value={from}
       /></label
     >
-    <label class="grid min-w-0 gap-1 text-xs text-ink/60"
+    <label class="grid min-w-0 gap-1 text-caption text-subtle"
       >結束日期<Input
         aria-label="搜尋結束日期"
         type="date"
@@ -101,19 +101,19 @@
       /></label
     >
   {/if}
-  <label class="grid gap-1 text-xs text-ink/60"
+  <label class="grid gap-1 text-caption text-subtle"
     >來源<Select aria-label="搜尋來源" class="h-11" bind:value={source}
       >{#each sources as option}<option value={option.id}>{option.label}</option
         >{/each}</Select
     ></label
   >
-  <label class="grid gap-1 text-xs text-ink/60"
+  <label class="grid gap-1 text-caption text-subtle"
     >收支<Select aria-label="搜尋收支" class="h-11" bind:value={flow}
       ><option value="all">全部收支</option><option value="income">收入</option
       ><option value="expense">支出</option></Select
     ></label
   >
-  <label class="grid gap-1 text-xs text-ink/60"
+  <label class="grid gap-1 text-caption text-subtle"
     >分類<Select aria-label="搜尋分類" class="h-11" bind:value={category}
       ><option value="">所有分類</option>{#each categories as option}<option
           value={option.id}>{option.label}</option
@@ -132,13 +132,13 @@
     onclick={() => (open = true)}
     ><SlidersHorizontal class="size-4" />篩選</Button
   >
-  <span class="rounded-full bg-steel/10 px-3 py-2 text-xs"
+  <span class="rounded-full bg-steel/10 px-3 py-2 text-caption"
     >{time === "custom"
       ? `${from || "不限起日"} ～ ${to || "不限迄日"}`
       : times.find((t) => t.id === time)?.label}</span
   >
   {#if time !== "all"}<button
-      class="min-h-11 text-xs text-steel"
+      class="min-h-11 text-caption text-steel"
       onclick={() => {
         time = "all";
         from = "";
@@ -146,22 +146,22 @@
       }}>清除時間 ×</button
     >{/if}
   {#if source !== "all"}<button
-      class="min-h-11 rounded-full bg-paper px-3 text-xs"
+      class="min-h-11 rounded-full bg-paper px-3 text-caption"
       onclick={() => (source = "all")}
       >{sources.find((s) => s.id === source)?.label} ×</button
     >{/if}
   {#if flow !== "all"}<button
-      class="min-h-11 rounded-full bg-paper px-3 text-xs"
+      class="min-h-11 rounded-full bg-paper px-3 text-caption"
       onclick={() => (flow = "all")}
       >{flow === "income" ? "收入" : "支出"} ×</button
     >{/if}
   {#if category}<button
-      class="min-h-11 rounded-full bg-paper px-3 text-xs"
+      class="min-h-11 rounded-full bg-paper px-3 text-caption"
       onclick={() => (category = "")}
       >{categories.find((c) => c.id === category)?.label ?? "發票"} ×</button
     >{/if}
   {#if time !== "all" || source !== "all" || flow !== "all" || category}<button
-      class="min-h-11 px-2 text-xs text-steel"
+      class="min-h-11 px-2 text-caption text-steel"
       onclick={reset}>清除篩選</button
     >{/if}
 </div>

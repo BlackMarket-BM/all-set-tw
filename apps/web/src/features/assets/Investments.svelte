@@ -68,17 +68,17 @@
   />{:else}<div class="grid gap-5">
     <div class="grid grid-cols-2 gap-3 md:grid-cols-3">
       <div class="rounded-xl border border-ink/10 bg-white p-4 shadow-xs">
-        <p class="text-xs text-ink/45">持倉市值</p>
+        <p class="text-caption text-subtle">持倉市值</p>
         <p class="mt-2 text-xl font-bold">{formatCurrency(total)}</p>
       </div>
       <div class="rounded-xl border border-ink/10 bg-white p-4 shadow-xs">
-        <p class="text-xs text-ink/45">持倉數</p>
+        <p class="text-caption text-subtle">持倉數</p>
         <p class="mt-2 text-xl font-bold">{positions.length}</p>
       </div>
       <div
         class="hidden rounded-xl border border-ink/10 bg-white p-4 shadow-xs md:block"
       >
-        <p class="text-xs text-ink/45">交易筆數</p>
+        <p class="text-caption text-subtle">交易筆數</p>
         <p class="mt-2 text-xl font-bold">{$trades.data?.length ?? 0}</p>
       </div>
     </div>
@@ -88,7 +88,7 @@
           <h2 class="text-lg font-semibold">投資持倉</h2>
           <div class="relative w-52">
             <Search
-              class="pointer-events-none absolute left-3 top-1/2 z-10 size-4 -translate-y-1/2 text-muted-foreground"
+              class="pointer-events-none absolute left-3 top-1/2 z-10 size-4 -translate-y-1/2 text-subtle"
             /><Input
               class="pl-9"
               placeholder="搜尋股票／基金"
@@ -99,7 +99,8 @@
       ><CardContent class="p-0"
         ><div class="hidden overflow-x-auto md:block">
           <table class="w-full text-left text-sm">
-            <thead class="border-y border-ink/8 bg-paper text-xs text-ink/50"
+            <thead
+              class="border-y border-ink/8 bg-paper text-caption text-subtle"
               ><tr
                 ><th class="px-5 py-3">名稱</th><th class="px-5 py-3">類型</th
                 ><th class="px-5 py-3">數量</th><th class="px-5 py-3 text-right"
@@ -118,7 +119,7 @@
                       (p.marketValue ?? 0) + (p.cashBalance ?? 0),
                       p.currency,
                     )}</td
-                  ><td class="px-5 py-3 text-xs text-ink/50"
+                  ><td class="px-5 py-3 text-caption text-subtle"
                     >{formatDate(p.asOfDate)}</td
                   ></tr
                 >{/each}</tbody
@@ -133,7 +134,7 @@
                 <p class="truncate font-semibold">
                   {p.symbol ? `${p.symbol} ` : ""}{p.name}
                 </p>
-                <p class="mt-1 text-xs text-ink/45">
+                <p class="mt-1 text-caption text-subtle">
                   {p.quantity ?? 0} 單位 · {p.assetType.toUpperCase()}
                 </p>
               </div>
@@ -164,7 +165,7 @@
                 <p class="truncate font-semibold">
                   {t.name ?? t.symbol ?? "投資交易"}
                 </p>
-                <p class="text-xs text-ink/45">
+                <p class="text-caption text-subtle">
                   {t.transactionName ?? t.transactionCode ?? ""} · {formatDate(
                     t.tradeDate ?? t.postedDate,
                   )}

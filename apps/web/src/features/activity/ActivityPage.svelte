@@ -865,7 +865,7 @@
     >
       <div class="relative min-w-0 flex-1">
         <Search
-          class="pointer-events-none absolute left-3 top-1/2 z-10 size-4 -translate-y-1/2 text-ink/45"
+          class="pointer-events-none absolute left-3 top-1/2 z-10 size-4 -translate-y-1/2 text-subtle"
         />
         <Input
           type="search"
@@ -880,7 +880,7 @@
         {#if search}<button
             type="button"
             aria-label="清空搜尋，返回月報"
-            class="absolute right-0 top-0 flex size-12 items-center justify-center text-ink/50"
+            class="absolute right-0 top-0 flex size-12 items-center justify-center text-subtle"
             onclick={clearSearch}><X class="size-5" /></button
           >{/if}
       </div>
@@ -891,7 +891,7 @@
         <h2 class="break-words text-xl font-semibold">
           搜尋「{submittedSearch}」
         </h2>
-        <p class="text-xs text-ink/55">所有已同步紀錄 · 日期由新到舊</p>
+        <p class="text-caption text-subtle">所有已同步紀錄 · 日期由新到舊</p>
         <ActivitySearchFilters
           bind:time={searchTime}
           bind:from={searchFrom}
@@ -904,7 +904,7 @@
         {#if invalidSearchDates}<p role="alert" class="text-sm text-coral">
             開始日期不得晚於結束日期。
           </p>{/if}
-        {#if fillingSearchBatch}<p role="status" class="text-sm text-ink/55">
+        {#if fillingSearchBatch}<p role="status" class="text-sm text-subtle">
             搜尋活動中…
           </p>{/if}
       </section>
@@ -924,7 +924,7 @@
       >
         <div class="min-w-0">
           <p class="font-semibold text-coral">部分資料載入失敗</p>
-          <p class="mt-1 text-xs text-ink/65">
+          <p class="mt-1 text-caption text-ink/65">
             {activityDataStatus.failedLabels.join(
               "、",
             )}目前無法取得；以下仍顯示已成功載入的資料。
@@ -958,7 +958,7 @@
         </div>
         <div class="mt-5 grid grid-cols-2 gap-5">
           <div class="min-w-0">
-            <p class="text-xs text-ink/55">{selectedMonthLabel}收入</p>
+            <p class="text-caption text-subtle">{selectedMonthLabel}收入</p>
             <p
               class="mt-2 break-all text-lg font-medium text-moss tabular-nums"
             >
@@ -966,14 +966,14 @@
                 ? "—"
                 : `+${formatCurrency(incomeTotal)}`}
             </p>
-            <p class="mt-1 text-[11px] text-ink/50">
+            <p class="mt-1 text-xs text-subtle">
               {activitySummaryIncomplete
                 ? "資料尚未完整載入"
                 : "銀行與信用卡活動"}
             </p>
           </div>
           <div class="min-w-0">
-            <p class="text-xs text-ink/55">{selectedMonthLabel}支出</p>
+            <p class="text-caption text-subtle">{selectedMonthLabel}支出</p>
             <p
               class="mt-2 break-all text-lg font-medium text-coral tabular-nums"
             >
@@ -981,7 +981,7 @@
                 ? "—"
                 : `−${formatCurrency(expenseTotal)}`}
             </p>
-            <p class="mt-1 text-[11px] text-ink/50">
+            <p class="mt-1 text-xs text-subtle">
               {activitySummaryIncomplete
                 ? "資料尚未完整載入"
                 : "含未配對發票，不計入已排除活動"}
@@ -992,8 +992,8 @@
           class="mt-6 flex flex-wrap items-end justify-between gap-3 border-t border-ink/8 pt-5"
         >
           <div>
-            <p class="text-xs text-ink/55">{selectedMonthLabel}淨流入</p>
-            <p class="mt-1 text-[11px] text-ink/50">收入 − 支出</p>
+            <p class="text-caption text-subtle">{selectedMonthLabel}淨流入</p>
+            <p class="mt-1 text-xs text-subtle">收入 − 支出</p>
           </div>
           <p
             class={`break-all text-2xl font-medium tracking-tight tabular-nums ${incomeTotal >= expenseTotal ? "text-moss" : "text-coral"}`}
@@ -1008,7 +1008,7 @@
       <section class="min-w-0 border-t border-ink/10 pt-5">
         <div class="min-w-0">
           <h2 class="text-base font-semibold">每月分類比例</h2>
-          <p class="mt-1 text-xs text-ink/45">
+          <p class="mt-1 text-caption text-subtle">
             未配對發票列為支出，已配對發票不重複計算
           </p>
         </div>
@@ -1041,7 +1041,7 @@
       <section class="hidden min-w-0 border-t border-ink/10 pt-5 md:block">
         <div class="flex items-center justify-between gap-3">
           <h2 class="text-base font-semibold">現金流趨勢</h2>
-          <span class="text-xs text-ink/50">6 個月　收入／支出</span>
+          <span class="text-caption text-subtle">6 個月　收入／支出</span>
         </div>
         <div class="pt-5">
           {#if activitySummaryIncomplete}
@@ -1067,18 +1067,18 @@
                       style={`height:${Math.max(8, (point.expense / maxCashFlow) * 100)}%`}
                     ></span>
                   </div>
-                  <span class="mt-2 text-xs font-semibold"
+                  <span class="mt-2 text-caption font-semibold"
                     >{Number(point.month.slice(5))} 月</span
-                  ><span class="mt-1 truncate text-[10px] text-moss"
+                  ><span class="mt-1 truncate text-xs text-moss"
                     >+{formatCompactTwd(point.income)}</span
-                  ><span class="truncate text-[10px] text-coral"
+                  ><span class="truncate text-xs text-coral"
                     >−{formatCompactTwd(point.expense)}</span
                   >
                 </button>
               {/each}
             </div>
             <div
-              class="mt-3 flex items-center justify-between text-xs text-ink/45"
+              class="mt-3 flex items-center justify-between text-caption text-subtle"
             >
               <span
                 ><span class="text-emerald-700">■</span> 收入　<span
@@ -1113,7 +1113,7 @@
                       ? `${selectedMonthLabel} · 支出`
                       : "所有活動"}
             </h2>
-            <p class="text-xs text-ink/45">
+            <p class="text-caption text-subtle">
               {searching
                 ? "符合目前搜尋條件的活動"
                 : "銀行與帳戶資訊直接顯示於每筆活動"}
@@ -1129,7 +1129,7 @@
                 ? "收入"
                 : "支出"}</span
             ><button
-              class="min-h-8 px-2 text-xs font-semibold text-steel"
+              class="min-h-8 px-2 text-caption font-semibold text-steel"
               onclick={clearCategoryFilter}>清除分類</button
             >
           </div>{/if}
@@ -1142,12 +1142,12 @@
             bind:value={monthlySearch}
           />
           <div class="grid min-w-0 gap-1.5">
-            <span class="text-xs font-semibold text-ink/50">來源</span>
+            <span class="text-caption font-semibold text-subtle">來源</span>
             <TabsList
               aria-label="活動來源"
               class="grid h-auto w-full grid-cols-4"
               >{#each [{ key: "all", label: "全部" }, { key: "bank", label: "銀行" }, { key: "card", label: "信用卡" }, { key: "invoice", label: "發票" }] as filter (filter.key)}<TabsTrigger
-                  class="min-h-9 min-w-0 px-1 text-xs md:text-sm"
+                  class="min-h-9 min-w-0 px-1 text-caption md:text-sm"
                   active={source === filter.key}
                   onclick={() => (source = filter.key as ActivitySourceFilter)}
                   >{filter.label}</TabsTrigger
@@ -1164,7 +1164,7 @@
       <div class="min-w-0">
         <div class="min-w-0 md:hidden">
           {#if filteredGroups.length === 0}<p
-              class="p-8 text-center text-sm text-ink/50"
+              class="p-8 text-center text-sm text-subtle"
             >
               {searching && invalidSearchDates
                 ? "請調整搜尋日期。"
@@ -1175,13 +1175,13 @@
                     : "沒有符合條件的活動。"}
             </p>{:else}
             {#each filteredGroups as group (group.dateKey)}<div
-                class="flex items-center justify-between border-t border-ink/8 py-2.5 text-xs"
+                class="flex items-center justify-between border-t border-ink/8 py-2.5 text-caption"
               >
-                <span class="font-medium text-ink/50"
+                <span class="font-medium text-subtle"
                   >{searching
                     ? `${group.dateKey.slice(0, 4)} 年 `
                     : ""}{formatActivityDateGroup(group.dateKey)}</span
-                ><span class="text-ink/45">{group.items.length} 筆</span>
+                ><span class="text-subtle">{group.items.length} 筆</span>
               </div>
               <div class="divide-y divide-ink/8">
                 {#each group.items as item (item.source + "-" + item.id)}{@const amount =
@@ -1204,7 +1204,7 @@
                           .includes(submittedSearch.toLowerCase()) && !item.title
                           .toLowerCase()
                           .includes(submittedSearch.toLowerCase())}
-                        <p class="mt-1 truncate text-xs text-ink/55">
+                        <p class="mt-1 truncate text-caption text-subtle">
                           <SearchHighlight
                             text={item.searchText}
                             query={submittedSearch}
@@ -1212,16 +1212,16 @@
                         </p>
                       {/if}
                       {#if time}<p
-                          class="mt-0.5 text-[11px] font-medium tabular-nums text-ink/45"
+                          class="mt-0.5 text-xs font-medium tabular-nums text-subtle"
                         >
                           {time}
                         </p>{/if}
                       <p
-                        class="mt-0.5 truncate text-xs font-semibold text-ink/75"
+                        class="mt-0.5 truncate text-caption font-semibold text-ink/75"
                       >
                         {item.institutionName ?? sourceLabel(item)}
                       </p>
-                      <p class="mt-0.5 truncate text-[11px] text-ink/45">
+                      <p class="mt-0.5 truncate text-xs text-subtle">
                         {[item.accountName, item.category]
                           .filter(Boolean)
                           .join(" · ")}
@@ -1230,7 +1230,7 @@
                     <div class="flex shrink-0 items-center gap-1.5">
                       <div class="max-w-[40vw] text-right">
                         <p
-                          class={`truncate text-sm font-semibold tabular-nums ${item.excludedFromCalculation ? "text-ink/35 line-through" : (amount ?? 0) < 0 ? "text-coral" : item.source !== "invoice" ? "text-moss" : ""}`}
+                          class={`truncate text-sm font-semibold tabular-nums ${item.excludedFromCalculation ? "text-subtle line-through" : (amount ?? 0) < 0 ? "text-coral" : item.source !== "invoice" ? "text-moss" : ""}`}
                         >
                           <ActivityAmount
                             {item}
@@ -1238,7 +1238,7 @@
                             exchangeRates={$rates.data}
                           />
                         </p>
-                        <p class="mt-1 text-[11px] text-ink/40">
+                        <p class="mt-1 text-xs text-subtle">
                           {activityStatusLabel(item)}
                         </p>
                       </div>
@@ -1249,7 +1249,7 @@
         </div>
         <div class="hidden overflow-x-auto md:block">
           {#if filteredGroups.length === 0}<p
-              class="p-8 text-center text-sm text-ink/50"
+              class="p-8 text-center text-sm text-subtle"
             >
               {searching && invalidSearchDates
                 ? "請調整搜尋日期。"
@@ -1267,7 +1267,7 @@
                 /></colgroup
               >
               <thead
-                class="border-b border-ink/8 text-xs font-semibold text-ink/45"
+                class="border-b border-ink/8 text-caption font-semibold text-subtle"
                 ><tr
                   ><th class="py-2.5 pr-4">商家／說明</th><th
                     class="px-4 py-2.5">銀行／帳戶</th
@@ -1278,13 +1278,13 @@
               >
             </table>
             {#each filteredGroups as group (group.dateKey)}<div
-                class="flex min-w-[760px] items-center justify-between border-t border-ink/8 py-2.5 text-xs"
+                class="flex min-w-[760px] items-center justify-between border-t border-ink/8 py-2.5 text-caption"
               >
-                <span class="font-medium text-ink/50"
+                <span class="font-medium text-subtle"
                   >{searching
                     ? `${group.dateKey.slice(0, 4)} 年 `
                     : ""}{formatActivityDateGroup(group.dateKey)}</span
-                ><span class="text-ink/45">{group.items.length} 筆</span>
+                ><span class="text-subtle">{group.items.length} 筆</span>
               </div>
               <table class="w-full min-w-[760px] table-fixed text-left text-sm">
                 <colgroup
@@ -1319,7 +1319,7 @@
                             .includes(submittedSearch.toLowerCase()) && !item.title
                             .toLowerCase()
                             .includes(submittedSearch.toLowerCase())}
-                          <p class="mt-1 truncate text-xs text-ink/55">
+                          <p class="mt-1 truncate text-caption text-subtle">
                             <SearchHighlight
                               text={item.searchText}
                               query={submittedSearch}
@@ -1327,7 +1327,7 @@
                           </p>
                         {/if}
                         {#if time}<p
-                            class="mt-1 text-xs font-medium tabular-nums text-ink/45"
+                            class="mt-1 text-caption font-medium tabular-nums text-subtle"
                           >
                             {time}
                           </p>{/if}
@@ -1343,7 +1343,7 @@
                           {item.institutionName ?? sourceLabel(item)}
                         </p>
                         {#if item.accountName}<p
-                            class="mt-1 truncate text-xs text-ink/40"
+                            class="mt-1 truncate text-caption text-subtle"
                           >
                             {item.accountName}
                           </p>{/if}</td
@@ -1353,7 +1353,7 @@
                         ><div class="flex items-center justify-end gap-2">
                           <div class="min-w-0 text-right">
                             <p
-                              class={`truncate whitespace-nowrap font-semibold tabular-nums ${item.excludedFromCalculation ? "text-ink/35 line-through" : (amount ?? 0) < 0 ? "text-coral" : item.source !== "invoice" ? "text-moss" : ""}`}
+                              class={`truncate whitespace-nowrap font-semibold tabular-nums ${item.excludedFromCalculation ? "text-subtle line-through" : (amount ?? 0) < 0 ? "text-coral" : item.source !== "invoice" ? "text-moss" : ""}`}
                             >
                               <ActivityAmount
                                 {item}
@@ -1361,7 +1361,7 @@
                                 exchangeRates={$rates.data}
                               />
                             </p>
-                            <p class="mt-1 text-xs text-ink/40">
+                            <p class="mt-1 text-caption text-subtle">
                               {activityStatusLabel(item)}
                             </p>
                           </div>
@@ -1388,7 +1388,7 @@
             onclick={() => $searchResults.fetchNextPage()}>重試載入更多</Button
           >
         {:else}
-          <p role="status" class="text-sm text-ink/55">
+          <p role="status" class="text-sm text-subtle">
             {$searchResults.isFetching ? "載入中…" : "往下捲動載入更多"}
           </p>
         {/if}
@@ -1421,7 +1421,7 @@
             <div class="flex min-w-0 items-center gap-2">
               <button
                 aria-label="返回活動列表"
-                class="flex size-11 shrink-0 items-center justify-center rounded-full text-ink/60 hover:bg-paper"
+                class="flex size-11 shrink-0 items-center justify-center rounded-full text-subtle hover:bg-paper"
                 onclick={closeDetail}
                 ><ArrowLeft class="size-5 md:hidden" /><X
                   class="hidden size-5 md:block"
@@ -1434,7 +1434,7 @@
                 活動明細
               </h2>
             </div>
-            <span class="text-xs font-medium text-ink/45"
+            <span class="text-caption font-medium text-subtle"
               >{sourceLabel(detailItem)}</span
             >
           </header>
@@ -1448,14 +1448,14 @@
                   <h3 class="break-words text-xl font-semibold leading-snug">
                     {detailItem.title}
                   </h3>
-                  <p class="mt-1 text-sm text-ink/50">
+                  <p class="mt-1 text-sm text-subtle">
                     {formatActivityDate(detailItem)}{#if transaction}
                       · {mappingAccount(transaction)}
                     {/if}
                   </p>
                 </div>
                 <p
-                  class={`shrink-0 pt-1 text-lg font-bold tabular-nums ${detailItem.excludedFromCalculation ? "text-ink/35 line-through" : (amount ?? 0) < 0 ? "text-coral" : detailItem.source !== "invoice" ? "text-moss" : ""}`}
+                  class={`shrink-0 pt-1 text-lg font-bold tabular-nums ${detailItem.excludedFromCalculation ? "text-subtle line-through" : (amount ?? 0) < 0 ? "text-coral" : detailItem.source !== "invoice" ? "text-moss" : ""}`}
                 >
                   <ActivityAmount
                     item={detailItem}
@@ -1485,18 +1485,18 @@
               <h3 class="text-base font-semibold">來源名稱</h3>
               <div class="mt-3 grid gap-3">
                 {#if transaction}<div class="rounded-xl bg-steel/10 p-4">
-                    <p class="text-xs font-semibold text-steel">
+                    <p class="text-caption font-semibold text-steel">
                       銀行／信用卡原始名稱
                     </p>
                     <p class="mt-1 break-words font-semibold">
                       {mappingMerchant(transaction)}
                     </p>
                     {#if transaction.description && transaction.description !== mappingMerchant(transaction)}<p
-                        class="mt-1 break-words text-xs text-ink/50"
+                        class="mt-1 break-words text-caption text-subtle"
                       >
                         {transaction.description}
                       </p>{/if}
-                    <p class="mt-1 text-xs text-ink/50">
+                    <p class="mt-1 text-caption text-subtle">
                       {mappingAccount(transaction)} · 實付 {formatCurrency(
                         Math.abs(transaction.amount),
                         transaction.currency,
@@ -1504,11 +1504,13 @@
                     </p>
                   </div>{/if}
                 {#if invoice}<div class="rounded-xl bg-coral/10 p-4">
-                    <p class="text-xs font-semibold text-coral">發票商家名稱</p>
+                    <p class="text-caption font-semibold text-coral">
+                      發票商家名稱
+                    </p>
                     <p class="mt-1 break-words font-semibold">
                       {invoice.sellerName ?? "電子發票"}
                     </p>
-                    <p class="mt-1 text-xs text-ink/50">
+                    <p class="mt-1 text-caption text-subtle">
                       發票 {invoice.invoiceNumber ?? "無發票號碼"} · 總額
                       {formatCurrency(invoice.amount)}
                     </p>
@@ -1517,14 +1519,16 @@
                     class="rounded-xl bg-amber-50 p-4 text-amber-900"
                   >
                     <p class="font-semibold">尚未找到銀行／信用卡交易</p>
-                    <p class="mt-1 text-xs text-ink/55">
+                    <p class="mt-1 text-caption text-subtle">
                       仍會列入當月支出；你可以在下方手動配對。
                     </p>
                   </div>{/if}
                 {#if !transaction && !invoice}<div
                     class="rounded-xl bg-paper p-4"
                   >
-                    <p class="text-xs font-semibold text-ink/50">來源說明</p>
+                    <p class="text-caption font-semibold text-subtle">
+                      來源說明
+                    </p>
                     <p class="mt-1 break-words font-semibold">
                       {detailItem.subtitle || detailItem.title}
                     </p>
@@ -1535,7 +1539,7 @@
             {#if invoice}<section class="border-b border-ink/10 py-5">
                 <h3 class="text-base font-semibold">發票細項</h3>
                 {#if $detailInvoice.isPending}<p
-                    class="mt-3 rounded-xl bg-paper p-4 text-sm text-ink/50"
+                    class="mt-3 rounded-xl bg-paper p-4 text-sm text-subtle"
                   >
                     載入發票細項中。
                   </p>{:else if $detailInvoice.isError}<p
@@ -1543,7 +1547,7 @@
                   >
                     無法載入發票細項，請稍後再試。
                   </p>{:else if !$detailInvoice.data || $detailInvoice.data.items.length === 0}<p
-                    class="mt-3 rounded-xl bg-paper p-4 text-sm text-ink/50"
+                    class="mt-3 rounded-xl bg-paper p-4 text-sm text-subtle"
                   >
                     此發票沒有品項明細。
                   </p>{:else}<div class="mt-2 divide-y divide-ink/10">
@@ -1554,7 +1558,7 @@
                           <p class="break-words font-medium">
                             {line.description}
                           </p>
-                          <p class="mt-1 text-xs text-ink/50">
+                          <p class="mt-1 text-caption text-subtle">
                             {line.quantity != null
                               ? `${formatNumber(line.quantity)} 件`
                               : "數量未提供"}{line.unitPrice != null
@@ -1576,7 +1580,7 @@
                   <div>
                     <p class="font-semibold">分類</p>
                     {#if !detailItem.transactionId}<p
-                        class="mt-1 text-xs text-ink/50"
+                        class="mt-1 text-caption text-subtle"
                       >
                         {invoice
                           ? "配對銀行／信用卡交易後即可調整"
@@ -1605,7 +1609,7 @@
                   >
                     <span>
                       <span class="block font-semibold">排除統計計算</span>
-                      <span class="mt-1 block text-xs text-ink/50"
+                      <span class="mt-1 block text-caption text-subtle"
                         >保留活動，但不計入收支</span
                       >
                     </span>
@@ -1627,7 +1631,7 @@
                     <div class="min-w-0">
                       <p class="font-semibold">發票配對</p>
                       <p
-                        class={`mt-1 text-xs ${transaction ? "text-moss" : "text-coral"}`}
+                        class={`mt-1 text-caption ${transaction ? "text-moss" : "text-coral"}`}
                       >
                         {transaction ? "已配對，可變更或解除" : "尚未配對"}
                       </p>
@@ -1688,19 +1692,19 @@
                     : "選擇同日候選交易"}
               </h2>
               {#if mappingDialog.step === "candidates"}<p
-                  class="mt-1 truncate text-sm text-ink/50"
+                  class="mt-1 truncate text-sm text-subtle"
                 >
                   發票：{mappingDialog.invoice.sellerName ?? "電子發票"} ·
                   {formatCurrency(mappingDialog.invoice.amount)}
                 </p>{:else if mappingDialog.step === "confirm"}<p
-                  class="mt-1 text-sm text-ink/50"
+                  class="mt-1 text-sm text-subtle"
                 >
                   合併後活動只顯示一筆，支出採銀行／信用卡實付金額。
                 </p>{/if}
             </div>
             <button
               aria-label="關閉配對視窗"
-              class="flex size-11 shrink-0 items-center justify-center rounded-full text-ink/50 hover:bg-paper"
+              class="flex size-11 shrink-0 items-center justify-center rounded-full text-subtle hover:bg-paper"
               onclick={() => (mappingDialog = null)}
               ><X class="size-5" /></button
             >
@@ -1716,7 +1720,7 @@
                     <p class="truncate font-semibold">
                       {mappingDialog.invoice.sellerName ?? "電子發票"}
                     </p>
-                    <p class="mt-1 truncate text-xs text-ink/50">
+                    <p class="mt-1 truncate text-caption text-subtle">
                       信用卡＋發票 · {mappingDialog.invoice.invoiceNumber ??
                         "無發票號碼"}
                     </p>
@@ -1757,7 +1761,7 @@
                   class="rounded-xl border border-dashed border-ink/15 bg-paper p-6 text-center"
                 >
                   <p class="font-semibold">同一天沒有可配對的支出</p>
-                  <p class="mt-1 text-xs text-ink/50">
+                  <p class="mt-1 text-caption text-subtle">
                     只有同一天的 TWD 銀行或信用卡支出會列在這裡。
                   </p>
                 </div>{:else}{#each mappingCandidates as transaction (transaction.id)}{@const difference =
@@ -1775,7 +1779,8 @@
                         <span class="block truncate font-semibold"
                           >{mappingMerchant(transaction)}</span
                         >
-                        <span class="mt-1 block truncate text-xs text-ink/50"
+                        <span
+                          class="mt-1 block truncate text-caption text-subtle"
                           >{mappingAccount(transaction)} · {formatDate(
                             transaction.authorizedAt ??
                               transaction.postedDate ??
@@ -1799,7 +1804,7 @@
                     </span>
                   </button>{/each}{/if}
             </div>
-            <p class="mt-4 text-xs text-ink/50">
+            <p class="mt-4 text-caption text-subtle">
               依同一天與金額接近排序；商家名稱可能因支付工具而不同，最後由你決定。
             </p>
             <div class="mt-5 grid grid-cols-[7rem_1fr] gap-3">
@@ -1821,7 +1826,7 @@
               )}
               <div class="mt-5 grid gap-3">
                 <div class="rounded-xl bg-coral/10 p-4">
-                  <p class="text-xs font-semibold text-coral">發票</p>
+                  <p class="text-caption font-semibold text-coral">發票</p>
                   <div class="mt-2 flex items-center justify-between gap-4">
                     <p class="truncate font-semibold">
                       {mappingDialog.invoice.sellerName ?? "電子發票"}
@@ -1833,7 +1838,9 @@
                 </div>
                 <ArrowDown class="mx-auto size-5 text-steel" />
                 <div class="rounded-xl bg-steel/10 p-4">
-                  <p class="text-xs font-semibold text-steel">銀行／信用卡</p>
+                  <p class="text-caption font-semibold text-steel">
+                    銀行／信用卡
+                  </p>
                   <div class="mt-2 flex items-center justify-between gap-4">
                     <p class="truncate font-semibold">
                       {mappingMerchant(transaction)}
@@ -1849,11 +1856,11 @@
                     <p class="font-semibold">
                       差額 {formatCurrency(difference)}
                     </p>
-                    <p class="mt-1 text-xs text-ink/55">
+                    <p class="mt-1 text-caption text-subtle">
                       可能來自 LINE Pay 點數或其他折抵
                     </p>
                   </div>{/if}
-                <p class="text-xs text-ink/50">
+                <p class="text-caption text-subtle">
                   當月支出將計入 {formatCurrency(
                     Math.abs(transaction.amount),
                   )}，發票資料保留在合併紀錄中。

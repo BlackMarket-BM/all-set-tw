@@ -36,7 +36,7 @@
     class="max-h-[88vh] w-full overflow-y-auto rounded-t-2xl bg-white p-5 shadow-2xl md:max-w-lg md:rounded-2xl md:p-6"
   >
     <h2 class="text-xl font-semibold">更新活動分類</h2>
-    <p class="mt-1 text-sm text-ink/50">
+    <p class="mt-1 text-sm text-subtle">
       {update.item.title} → {categories[update.categoryId] ?? update.categoryId}
     </p>
     <label
@@ -48,7 +48,7 @@
           (update.addRule = (event.currentTarget as HTMLInputElement).checked)}
       /><span
         ><span class="block font-semibold">同時新增分類規則</span><span
-          class="mt-1 block text-xs text-ink/50"
+          class="mt-1 block text-caption text-subtle"
           >符合規則的活動之後會自動套用。</span
         ></span
       ></label
@@ -63,7 +63,7 @@
           ></Select
         >
         <Input bind:value={update.pattern} />
-        <p class="text-xs font-semibold text-steel">
+        <p class="text-caption font-semibold text-steel">
           將更新 {matchCount} 筆過去活動
         </p>
       </div>
