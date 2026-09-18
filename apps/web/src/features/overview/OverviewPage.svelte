@@ -376,44 +376,42 @@
     </div>
 
     <section class="min-w-0 border-t border-ink/10 pt-5" aria-label="本月收支">
-      <div class="flex flex-wrap items-center justify-between gap-2">
-        <h2 class="text-base font-semibold">本月收支</h2>
+      <div class="flex flex-wrap items-start justify-between gap-2">
+        <div class="min-w-0">
+          <h2 class="text-base font-semibold">本月收支</h2>
+          <p class="mt-1 text-caption leading-6 text-ink/70">
+            銀行與信用卡活動，含未配對發票
+          </p>
+        </div>
         <Button variant="ghost" size="sm" onclick={() => navigate("activity")}
           >查看活動 →</Button
         >
       </div>
-      <div class="mt-5 grid grid-cols-2 gap-5">
+      <div class="mt-5 grid grid-cols-3 gap-3 md:gap-6">
         <div class="min-w-0">
-          <p class="text-caption text-subtle">
-            {Number(monthKey.slice(5))} 月收入
-          </p>
-          <p class="mt-2 break-all text-lg font-medium text-moss tabular-nums">
+          <p class="text-sm font-medium text-ink">收入</p>
+          <p
+            class="mt-2 break-all text-xl font-semibold tracking-tight text-moss tabular-nums md:text-2xl"
+          >
             +{formatCurrency(monthlyIncome)}
           </p>
-          <p class="mt-1 text-caption text-subtle">銀行與信用卡活動</p>
         </div>
         <div class="min-w-0">
-          <p class="text-caption text-subtle">
-            {Number(monthKey.slice(5))} 月支出
-          </p>
-          <p class="mt-2 break-all text-lg font-medium text-coral tabular-nums">
+          <p class="text-sm font-medium text-ink">支出</p>
+          <p
+            class="mt-2 break-all text-xl font-semibold tracking-tight text-coral tabular-nums md:text-2xl"
+          >
             −{formatCurrency(monthlyExpense)}
           </p>
-          <p class="mt-1 text-caption text-subtle">含未配對發票</p>
         </div>
-      </div>
-      <div
-        class="mt-6 flex flex-wrap items-end justify-between gap-3 border-t border-ink/8 pt-5"
-      >
         <div class="min-w-0">
-          <p class="text-caption text-subtle">本月淨流入</p>
-          <p class="mt-1 text-caption text-subtle">收入 − 支出</p>
+          <p class="text-sm font-medium text-ink">淨流入</p>
+          <p
+            class={`mt-2 break-all text-xl font-semibold tracking-tight tabular-nums md:text-2xl ${monthlyNet >= 0 ? "text-moss" : "text-coral"}`}
+          >
+            {formatCurrency(monthlyNet)}
+          </p>
         </div>
-        <p
-          class={`break-all text-2xl font-medium tracking-tight tabular-nums ${monthlyNet >= 0 ? "text-moss" : "text-coral"}`}
-        >
-          {formatCurrency(monthlyNet)}
-        </p>
       </div>
     </section>
 

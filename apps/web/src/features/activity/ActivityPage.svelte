@@ -941,9 +941,16 @@
     {#if !searching}
       <section class="min-w-0" aria-label={`${selectedMonthLabel}收支`}>
         <div
-          class="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"
+          class="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-start sm:justify-between"
         >
-          <h2 class="text-base font-semibold">{selectedMonthLabel}收支</h2>
+          <div class="min-w-0">
+            <h2 class="text-base font-semibold">{selectedMonthLabel}收支</h2>
+            <p class="mt-1 text-caption leading-6 text-ink/70">
+              {activitySummaryIncomplete
+                ? "資料尚未完整載入"
+                : "銀行與信用卡活動，含未配對發票，不計入已排除活動"}
+            </p>
+          </div>
           <Select
             aria-label="選擇活動月份"
             class="h-11 w-full min-w-0 font-semibold sm:w-auto sm:shrink-0"
@@ -955,52 +962,37 @@
               >{/each}</Select
           >
         </div>
-        <div class="mt-5 grid grid-cols-2 gap-5">
+        <div class="mt-5 grid grid-cols-3 gap-3 md:gap-6">
           <div class="min-w-0">
-            <p class="text-caption text-subtle">{selectedMonthLabel}收入</p>
+            <p class="text-sm font-medium text-ink">收入</p>
             <p
-              class="mt-2 break-all text-lg font-medium text-moss tabular-nums"
+              class="mt-2 break-all text-xl font-semibold tracking-tight text-moss tabular-nums md:text-2xl"
             >
               {activitySummaryIncomplete
                 ? "—"
                 : `+${formatCurrency(incomeTotal)}`}
             </p>
-            <p class="mt-1 text-caption text-subtle">
-              {activitySummaryIncomplete
-                ? "資料尚未完整載入"
-                : "銀行與信用卡活動"}
-            </p>
           </div>
           <div class="min-w-0">
-            <p class="text-caption text-subtle">{selectedMonthLabel}支出</p>
+            <p class="text-sm font-medium text-ink">支出</p>
             <p
-              class="mt-2 break-all text-lg font-medium text-coral tabular-nums"
+              class="mt-2 break-all text-xl font-semibold tracking-tight text-coral tabular-nums md:text-2xl"
             >
               {activitySummaryIncomplete
                 ? "—"
                 : `−${formatCurrency(expenseTotal)}`}
             </p>
-            <p class="mt-1 text-caption text-subtle">
+          </div>
+          <div class="min-w-0">
+            <p class="text-sm font-medium text-ink">淨流入</p>
+            <p
+              class={`mt-2 break-all text-xl font-semibold tracking-tight tabular-nums md:text-2xl ${incomeTotal >= expenseTotal ? "text-moss" : "text-coral"}`}
+            >
               {activitySummaryIncomplete
-                ? "資料尚未完整載入"
-                : "含未配對發票，不計入已排除活動"}
+                ? "—"
+                : formatCurrency(incomeTotal - expenseTotal)}
             </p>
           </div>
-        </div>
-        <div
-          class="mt-6 flex flex-wrap items-end justify-between gap-3 border-t border-ink/8 pt-5"
-        >
-          <div class="min-w-0">
-            <p class="text-caption text-subtle">{selectedMonthLabel}淨流入</p>
-            <p class="mt-1 text-caption text-subtle">收入 − 支出</p>
-          </div>
-          <p
-            class={`min-w-0 break-all text-right text-2xl font-medium tracking-tight tabular-nums ${incomeTotal >= expenseTotal ? "text-moss" : "text-coral"}`}
-          >
-            {activitySummaryIncomplete
-              ? "—"
-              : formatCurrency(incomeTotal - expenseTotal)}
-          </p>
         </div>
       </section>
 
