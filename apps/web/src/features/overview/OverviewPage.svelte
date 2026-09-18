@@ -305,6 +305,7 @@
   <EmptyState title="載入總覽中" body="正在讀取最新紀錄。" />
 {:else if failed}
   <EmptyState
+    alert
     title="無法載入總覽"
     body="請稍後再試，或確認 Worker API 是否可用。"
   />

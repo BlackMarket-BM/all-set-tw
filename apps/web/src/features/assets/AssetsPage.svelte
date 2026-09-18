@@ -98,6 +98,7 @@
   />
 {:else if failed}
   <EmptyState
+    alert
     title="無法載入資產清冊"
     body="部分必要資料目前無法取得，請稍後再試。"
   />

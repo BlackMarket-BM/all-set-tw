@@ -317,7 +317,7 @@
               {/if}
             {/if}
           {:catch}
-            <section class="min-w-0 py-16">
+            <section class="min-w-0 py-16" role="alert" aria-live="assertive">
               <h2 class="text-base font-semibold tracking-tight">
                 頁面載入失敗
               </h2>
