@@ -489,6 +489,9 @@
       };
     }),
   );
+  const maxCashFlow = $derived(
+    Math.max(...cashFlow.flatMap((point) => [point.income, point.expense]), 1),
+  );
   const filtered = $derived(
     filterActivities(rawItems, {
       month: searching ? "" : selectedMonth,
@@ -1041,18 +1044,29 @@
         </div>
         <div class="pt-5">
           {#if activitySummaryIncomplete}
-            <p class="py-8 text-center text-sm text-subtle">
+            <div
+              class="rounded-xl border border-amber-200/80 bg-amber-50 p-6 text-center text-sm text-amber-900"
+            >
               活動資料尚未完整載入，現金流趨勢暫不計算。
-            </p>
+            </div>
           {:else}
             <div class="grid grid-cols-6 gap-3">
               {#each cashFlow as point (point.month)}
                 <button
                   aria-pressed={selectedMonth === point.month}
-                  class={`grid min-w-0 py-2 text-left transition ${selectedMonth === point.month ? "bg-ink/4 shadow-[inset_0_-2px_0_var(--color-steel)]" : "hover:bg-ink/3"}`}
+                  class={`grid min-w-0 px-1 pb-2 pt-3 text-left transition ${selectedMonth === point.month ? "bg-ink/4 shadow-[inset_0_-2px_0_var(--color-steel)]" : "hover:bg-ink/3"}`}
                   onclick={() => chooseMonth(point.month)}
                 >
-                  <span class="text-caption font-semibold"
+                  <div class="flex h-28 items-end justify-center gap-2">
+                    <span
+                      class="w-1/3 rounded-t-sm bg-emerald-700"
+                      style={`height:${Math.max(8, (point.income / maxCashFlow) * 100)}%`}
+                    ></span><span
+                      class="w-1/3 rounded-t-sm bg-coral"
+                      style={`height:${Math.max(8, (point.expense / maxCashFlow) * 100)}%`}
+                    ></span>
+                  </div>
+                  <span class="mt-2 text-caption font-semibold"
                     >{Number(point.month.slice(5))} 月</span
                   ><span class="mt-1 truncate text-xs text-moss"
                     >+{formatCompactTwd(point.income)}</span
@@ -1062,8 +1076,14 @@
                 </button>
               {/each}
             </div>
-            <div class="mt-3 flex justify-end text-caption text-subtle">
-              <button
+            <div
+              class="mt-3 flex items-center justify-between text-caption text-subtle"
+            >
+              <span
+                ><span class="text-emerald-700">■</span> 收入　<span
+                  class="text-coral">■</span
+                > 支出</span
+              ><button
                 class="font-semibold text-steel"
                 onclick={() => chooseMonth(currentMonth)}>回到本月</button
               >
