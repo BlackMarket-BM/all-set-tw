@@ -850,10 +850,9 @@
   }
 </script>
 
-{#if !searching && ($bank.isPending || $invoices.isPending || $invoiceMappings.isPending || $trades.isPending)}<EmptyState
-    title="載入活動中"
-    body="正在整理銀行、投資與發票資料。"
-  />{:else}
+{#if !searching && ($bank.isPending || $invoices.isPending || $invoiceMappings.isPending || $trades.isPending)}
+  <EmptyState title="載入活動中" body="正在整理銀行、投資與發票資料。" />
+{:else}
   <div class="grid min-w-0 max-w-full gap-6 overflow-x-clip pt-3 md:pt-2">
     <form
       class="flex min-w-0 gap-2"
@@ -924,7 +923,7 @@
       >
         <div class="min-w-0">
           <p class="font-semibold text-coral">部分資料載入失敗</p>
-          <p class="mt-1 text-caption text-ink/65">
+          <p class="mt-1 text-caption text-subtle">
             {activityDataStatus.failedLabels.join(
               "、",
             )}目前無法取得；以下仍顯示已成功載入的資料。
@@ -1217,7 +1216,7 @@
                           {time}
                         </p>{/if}
                       <p
-                        class="mt-0.5 truncate text-caption font-semibold text-ink/75"
+                        class="mt-0.5 truncate text-caption font-medium text-subtle"
                       >
                         {item.institutionName ?? sourceLabel(item)}
                       </p>
@@ -1242,7 +1241,7 @@
                           {activityStatusLabel(item)}
                         </p>
                       </div>
-                      <ChevronRight class="size-4 text-ink/30" />
+                      <ChevronRight class="size-4 text-subtle" />
                     </div>
                   </button>{/each}
               </div>{/each}{/if}
@@ -1339,7 +1338,7 @@
                             )}</Badge
                           >{/if}</td
                       ><td class="px-4 py-3.5"
-                        ><p class="truncate font-semibold text-ink/80">
+                        ><p class="truncate font-medium text-subtle">
                           {item.institutionName ?? sourceLabel(item)}
                         </p>
                         {#if item.accountName}<p
@@ -1365,7 +1364,7 @@
                               {activityStatusLabel(item)}
                             </p>
                           </div>
-                          <ChevronRight class="size-4 shrink-0 text-ink/30" />
+                          <ChevronRight class="size-4 shrink-0 text-subtle" />
                         </div></td
                       ></tr
                     >{/each}</tbody

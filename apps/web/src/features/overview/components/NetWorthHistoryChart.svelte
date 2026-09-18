@@ -303,7 +303,7 @@
         >
           <span class="text-subtle">
             {comparisonOption?.label ?? "較昨日"}
-            <span class="ml-2 font-medium text-ink/80">
+            <span class="ml-2 font-medium text-ink">
               {#if !comparison}尚無有效快照
               {:else if comparison.changeValue === 0}持平
               {:else}{comparison.changeValue > 0 ? "+" : ""}{formatCurrency(
@@ -343,7 +343,7 @@
               >
                 <span class="text-subtle">目前</span>
                 <span
-                  class="whitespace-nowrap text-right font-semibold text-ink/70 tabular-nums sm:text-base"
+                  class="whitespace-nowrap text-right font-semibold tabular-nums sm:text-base"
                   >{formatCurrency(comparison.currentValue)}</span
                 >
               </div>
@@ -359,7 +359,7 @@
                   </span>
                 </span>
                 <span
-                  class="whitespace-nowrap text-right font-semibold text-ink/70 tabular-nums sm:text-base"
+                  class="whitespace-nowrap text-right font-semibold tabular-nums sm:text-base"
                   >{formatCurrency(comparison.previousValue)}</span
                 >
               </div>

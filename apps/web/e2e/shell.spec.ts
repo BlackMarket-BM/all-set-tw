@@ -140,6 +140,36 @@ async function expectSelectedConnectorInView(
   expect(pageWidth.scroll).toBe(pageWidth.client);
 }
 
+for (const { hash, heading } of [
+  { hash: "/#/overview", heading: "載入總覽中" },
+  { hash: "/#/activity", heading: "載入活動中" },
+  { hash: "/#/assets", heading: "載入資產清冊中" },
+]) {
+  test(`shows a paper loading state for ${heading}`, async ({ page }) => {
+    let release!: () => void;
+    const pending = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    await page.route("**/api/bank**", async (route) => {
+      await pending;
+      await route.fulfill({
+        json: { accounts: [], transactions: [] },
+      });
+    });
+
+    await page.goto(hash);
+    const loading = page.getByRole("heading", { name: heading, exact: true });
+    await expect(loading).toBeVisible();
+    const section = loading.locator("xpath=ancestor::section[1]");
+    await expect(section).not.toHaveClass(/bg-white/);
+    await expect(section).not.toHaveClass(/border-dashed/);
+    await expect(section).not.toHaveClass(/rounded-xl/);
+
+    release();
+    await expect(loading).toHaveCount(0);
+  });
+}
+
 test("overview uses one monthly bank request for balances and cash flow", async ({
   page,
 }) => {

@@ -314,7 +314,7 @@
         <div>
           <p class="text-sm text-subtle">其他資產總額</p>
           <p
-            class={`mt-1 font-bold tabular-nums ${variant === "embedded" ? "text-xl" : "text-3xl"}`}
+            class={`mt-1 font-semibold tracking-tight tabular-nums ${variant === "embedded" ? "text-xl" : "text-3xl"}`}
           >
             {formatCurrency(total)}
           </p>
@@ -336,11 +336,7 @@
         </div>
       </div>
     {/if}
-    <Card
-      class={variant === "embedded"
-        ? "border-0 bg-transparent shadow-none"
-        : ""}
-    >
+    <Card class="border-0 bg-transparent shadow-none">
       {#if !hideSummary}
         <CardHeader class={variant === "embedded" ? "px-4" : ""}
           ><h2 class="text-lg font-semibold">

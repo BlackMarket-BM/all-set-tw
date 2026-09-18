@@ -119,7 +119,7 @@
       <div>
         <p class="text-sm text-subtle">淨資產</p>
         <p
-          class="mt-3 break-all text-[clamp(2rem,7vw,3rem)] leading-tight font-medium tracking-tight tabular-nums"
+          class="mt-3 break-all text-[clamp(2rem,7vw,2.75rem)] leading-tight font-semibold tracking-tight tabular-nums"
         >
           {formatCurrency(summary.netWorth)}
         </p>

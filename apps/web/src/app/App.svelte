@@ -8,6 +8,7 @@
   import { swipeBack } from "@/shared/actions/swipe-back";
   import { moneyState } from "@/shared/state/money-visibility.svelte";
   import Button from "@/shared/ui/Button.svelte";
+  import EmptyState from "@/shared/ui/EmptyState.svelte";
   import Icon from "@/shared/ui/Icon.svelte";
   import {
     detailLabels,
@@ -280,11 +281,7 @@
           <Overview {api} {navigate} />
         {:else}
           {#await pagePromise}
-            <div
-              class="flex min-h-64 items-center justify-center text-sm text-subtle"
-            >
-              載入頁面中…
-            </div>
+            <EmptyState title="載入頁面中" body="正在準備內容。" />
           {:then module}
             {#if module}
               {#if view === "assets"}
@@ -320,12 +317,15 @@
               {/if}
             {/if}
           {:catch}
-            <div
-              class="flex min-h-64 flex-col items-center justify-center gap-3"
-            >
-              <p class="text-sm text-coral">頁面載入失敗，請再試一次。</p>
-              <Button variant="outline" onclick={retryPage}>重新載入</Button>
-            </div>
+            <section class="min-w-0 py-16">
+              <h2 class="text-base font-semibold tracking-tight">
+                頁面載入失敗
+              </h2>
+              <p class="mt-2 text-caption text-subtle">請再試一次。</p>
+              <Button class="mt-5" variant="outline" onclick={retryPage}
+                >重新載入</Button
+              >
+            </section>
           {/await}
         {/if}
       </main>

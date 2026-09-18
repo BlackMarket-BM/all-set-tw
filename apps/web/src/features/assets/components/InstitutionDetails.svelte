@@ -114,7 +114,7 @@
                   : " · 尚未取得更新時間"}
               </p>
             </div>
-            <p class="text-right text-sm font-bold tabular-nums text-steel">
+            <p class="text-right text-sm font-medium tabular-nums text-steel">
               {formatCurrency(account.balance ?? 0, account.currency)}
             </p>
           </div>
@@ -156,7 +156,7 @@
                     : "繳款期限尚未提供"}
               </p>
             </div>
-            <p class="text-right text-sm font-bold tabular-nums text-coral">
+            <p class="text-right text-sm font-medium tabular-nums text-coral">
               {card.balance == null
                 ? "金額尚未取得"
                 : formatCurrency(-Math.abs(card.balance), card.currency)}
@@ -201,7 +201,7 @@
                     : "期限未提供"} · {paymentStatusLabel(bill.isPaid)}
                 </p>
               </div>
-              <p class="text-sm font-bold tabular-nums">
+              <p class="text-sm font-medium tabular-nums">
                 {bill.statementAmount == null
                   ? "—"
                   : formatCurrency(bill.statementAmount, bill.currency)}
