@@ -757,9 +757,9 @@ test("shows this month's cash flow on the overview and opens activity", async ({
   await page.goto("/#/overview");
   const cashFlowSection = page.getByRole("region", { name: "本月收支" });
   await expect(cashFlowSection).toBeVisible();
-  await expect(cashFlowSection.getByText("+NT$50,000")).toBeVisible();
-  await expect(cashFlowSection.getByText("−NT$12,000")).toBeVisible();
-  await expect(cashFlowSection.getByText("NT$38,000")).toBeVisible();
+  await expect(cashFlowSection.getByText("+5萬")).toBeVisible();
+  await expect(cashFlowSection.getByText("−1萬")).toBeVisible();
+  await expect(cashFlowSection.getByText("4萬")).toBeVisible();
   await expect(page.getByRole("heading", { name: "資產配置" })).toHaveCount(0);
   const insightsSection = page.getByRole("region", { name: "值得留意" });
   await expect(insightsSection.getByText("尚未設定資料來源")).toBeVisible();

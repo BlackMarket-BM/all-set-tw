@@ -58,7 +58,14 @@
       <p class="mt-1 text-caption text-subtle">點選分類查看該月活動</p>
     </div>
     <p
-      class={`min-w-0 max-w-[58%] break-all text-right text-lg font-medium tracking-tight tabular-nums ${flow === "income" ? "text-moss" : "text-coral"}`}
+      class={`shrink-0 text-lg font-semibold tracking-tight tabular-nums md:hidden ${flow === "income" ? "text-moss" : "text-coral"}`}
+    >
+      {#if dataIncomplete}—{:else}{flow === "income"
+          ? "+"
+          : "−"}{formatCompactTwd(total)}{/if}
+    </p>
+    <p
+      class={`hidden min-w-0 max-w-[58%] break-all text-right text-lg font-semibold tracking-tight tabular-nums md:block ${flow === "income" ? "text-moss" : "text-coral"}`}
     >
       {#if dataIncomplete}—{:else}{flow === "income"
           ? "+"

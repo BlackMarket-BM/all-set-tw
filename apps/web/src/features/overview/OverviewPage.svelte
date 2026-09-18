@@ -392,7 +392,12 @@
         <div class="min-w-0">
           <p class="text-sm font-medium text-ink">收入</p>
           <p
-            class="mt-2 break-all text-xl font-semibold tracking-tight text-moss tabular-nums md:text-2xl"
+            class="mt-2 whitespace-nowrap text-lg font-semibold tracking-tight text-moss tabular-nums md:hidden"
+          >
+            +{formatCompactTwd(monthlyIncome)}
+          </p>
+          <p
+            class="mt-2 hidden break-all text-2xl font-semibold tracking-tight text-moss tabular-nums md:block"
           >
             +{formatCurrency(monthlyIncome)}
           </p>
@@ -400,7 +405,12 @@
         <div class="min-w-0">
           <p class="text-sm font-medium text-ink">支出</p>
           <p
-            class="mt-2 break-all text-xl font-semibold tracking-tight text-coral tabular-nums md:text-2xl"
+            class="mt-2 whitespace-nowrap text-lg font-semibold tracking-tight text-coral tabular-nums md:hidden"
+          >
+            −{formatCompactTwd(monthlyExpense)}
+          </p>
+          <p
+            class="mt-2 hidden break-all text-2xl font-semibold tracking-tight text-coral tabular-nums md:block"
           >
             −{formatCurrency(monthlyExpense)}
           </p>
@@ -408,7 +418,12 @@
         <div class="min-w-0">
           <p class="text-sm font-medium text-ink">淨流入</p>
           <p
-            class={`mt-2 break-all text-xl font-semibold tracking-tight tabular-nums md:text-2xl ${monthlyNet >= 0 ? "text-moss" : "text-coral"}`}
+            class={`mt-2 whitespace-nowrap text-lg font-semibold tracking-tight tabular-nums md:hidden ${monthlyNet >= 0 ? "text-moss" : "text-coral"}`}
+          >
+            {formatCompactTwd(monthlyNet)}
+          </p>
+          <p
+            class={`mt-2 hidden break-all text-2xl font-semibold tracking-tight tabular-nums md:block ${monthlyNet >= 0 ? "text-moss" : "text-coral"}`}
           >
             {formatCurrency(monthlyNet)}
           </p>
