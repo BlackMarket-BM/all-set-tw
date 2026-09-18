@@ -119,28 +119,20 @@
   );
   const gross = $derived(depositTotal + investmentTotal + manualTotal);
   const netWorth = $derived(gross - cardDebt);
-  const pct = (value: number) =>
-    gross > 0 ? Math.round((value / gross) * 100) : 0;
   const allocation = $derived([
     {
       label: "投資",
       value: investmentTotal,
-      bar: "bg-steel",
-      text: "text-steel",
       detail: `${$investments.data?.length ?? 0} 個持倉`,
     },
     {
       label: "存款",
       value: depositTotal,
-      bar: "bg-moss",
-      text: "text-moss",
       detail: `${deposits.length} 個帳戶`,
     },
     {
       label: "其他",
       value: manualTotal,
-      bar: "bg-coral",
-      text: "text-coral",
       detail: "保險、房產",
     },
   ]);
@@ -352,28 +344,11 @@
       <p class="mt-3 text-caption text-subtle">
         已扣除 {formatCurrency(cardDebt)} 信用卡負債
       </p>
-      <div
-        class="mt-6 flex h-1 overflow-hidden rounded-full bg-ink/5"
-        aria-hidden="true"
-      >
-        {#each allocation as item (item.label)}
-          <span class={`h-full ${item.bar}`} style={`width:${pct(item.value)}%`}
-          ></span>
-        {/each}
-      </div>
-      <div class="mt-5 grid grid-cols-3 gap-3 md:gap-6">
+      <div class="mt-6 grid grid-cols-3 gap-3 md:gap-6">
         {#each allocation as item (item.label)}
           <div class="min-w-0">
-            <p
-              class="flex min-w-0 items-center gap-1.5 text-caption text-subtle"
-            >
-              <span class={`size-1.5 shrink-0 rounded-full ${item.bar}`}></span>
-              <span class="min-w-0 truncate"
-                >{item.label === "其他" ? "其他資產" : item.label}</span
-              >
-              <span class="shrink-0 tabular-nums text-subtle"
-                >{pct(item.value)}%</span
-              >
+            <p class="text-caption text-subtle">
+              {item.label === "其他" ? "其他資產" : item.label}
             </p>
             <p
               class="mt-2 text-lg font-medium tracking-tight tabular-nums md:hidden"

@@ -129,16 +129,16 @@
             : `已扣除 ${formatCurrency(summary.cardDebt)} 信用卡負債`}
         </p>
       </div>
-      <div class="mt-5 grid grid-cols-3 gap-3 md:gap-6">
+      <div class="mt-6 grid grid-cols-3 gap-3 md:gap-6">
         <div class="min-w-0">
           <p class="text-caption text-subtle">銀行與現金</p>
           <p
-            class="mt-2 text-lg font-medium tracking-tight text-steel tabular-nums md:hidden"
+            class="mt-2 text-lg font-medium tracking-tight tabular-nums md:hidden"
           >
             {formatCompactTwd(summary.bankTotal)}
           </p>
           <p
-            class="mt-2 hidden break-all text-xl font-medium tracking-tight text-steel tabular-nums md:block 2xl:text-2xl"
+            class="mt-2 hidden break-all text-2xl font-semibold tracking-tight tabular-nums md:block"
           >
             {formatCurrency(summary.bankTotal)}
           </p>
@@ -149,12 +149,12 @@
         <div class="min-w-0">
           <p class="text-caption text-subtle">投資</p>
           <p
-            class="mt-2 text-lg font-medium tracking-tight text-steel tabular-nums md:hidden"
+            class="mt-2 text-lg font-medium tracking-tight tabular-nums md:hidden"
           >
             {formatCompactTwd(summary.investmentTotal)}
           </p>
           <p
-            class="mt-2 hidden break-all text-xl font-medium tracking-tight text-steel tabular-nums md:block 2xl:text-2xl"
+            class="mt-2 hidden break-all text-2xl font-semibold tracking-tight tabular-nums md:block"
           >
             {formatCurrency(summary.investmentTotal)}
           </p>
@@ -170,7 +170,7 @@
             {formatCompactTwd(summary.manualTotal)}
           </p>
           <p
-            class="mt-2 hidden break-all text-xl font-medium tracking-tight tabular-nums md:block 2xl:text-2xl"
+            class="mt-2 hidden break-all text-2xl font-semibold tracking-tight tabular-nums md:block"
           >
             {formatCurrency(summary.manualTotal)}
           </p>
