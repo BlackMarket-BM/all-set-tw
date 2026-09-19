@@ -10,6 +10,7 @@
     titleFormatter,
     valueFormatter = (value: unknown) => String(value ?? ""),
     hideItemLabel = false,
+    focusedKey = null,
     indicator = "dot",
   }: {
     class?: string;
@@ -17,6 +18,7 @@
     titleFormatter?: (data: unknown, header: unknown) => string;
     valueFormatter?: (value: unknown, key: string) => string;
     hideItemLabel?: boolean;
+    focusedKey?: string | null;
     indicator?: "dot" | "line";
   } = $props();
 
@@ -65,6 +67,7 @@
         <div
           class={cn(
             "grid items-center gap-2",
+            focusedKey && focusedKey !== series.key ? "opacity-35" : "",
             hideItemLabel
               ? "grid-cols-[auto_auto] justify-between"
               : "grid-cols-[auto_minmax(0,1fr)_auto]",

@@ -1866,3 +1866,59 @@ test("sets double-tap protection before app scripts and styles load", async ({
   }
   await expect(page.locator("html")).not.toHaveClass(/is-standalone/);
 });
+
+test("focuses asset categories without changing their total", async ({
+  page,
+}) => {
+  await page.route("**/api/history/net-worth/chart", async (route) => {
+    await route.fulfill({
+      json: [
+        {
+          date: "2026-08-13",
+          netWorth: 1800000,
+          assetType: "stock",
+          source: "investment",
+        },
+        {
+          date: "2026-08-14",
+          netWorth: 1900000,
+          assetType: "stock",
+          source: "investment",
+        },
+        {
+          date: "2026-08-13",
+          netWorth: 350000,
+          assetType: "deposit",
+          source: "bank",
+        },
+        {
+          date: "2026-08-14",
+          netWorth: 380000,
+          assetType: "deposit",
+          source: "bank",
+        },
+      ],
+    });
+  });
+  await page.setViewportSize({ width: 390, height: 1000 });
+  await page.goto("/#/overview");
+  const chart = page.getByRole("region", { name: "資產走勢" });
+  await page.getByRole("tab", { name: "全部", exact: true }).click();
+  await page.getByRole("button", { name: "顯示設定" }).click();
+  await page.getByRole("tab", { name: "分類", exact: true }).click();
+  const legend = page.getByLabel("分類資產圖例");
+  const stocks = legend.getByRole("button", { name: "股票/ETF NT$1,900,000" });
+  await expect(legend.getByRole("button")).toHaveCount(2);
+  await expect(chart.locator("g[opacity] > path")).toHaveCount(2);
+  await stocks.click();
+  await expect(stocks).toHaveAttribute("aria-pressed", "true");
+  await expect(
+    chart.locator("p").filter({ hasText: "NT$2,280,000" }),
+  ).toBeVisible();
+  await expect(chart.locator('g[opacity="0.2"]')).toHaveCount(1);
+  await chart.locator("[data-chart]").hover({ position: { x: 180, y: 100 } });
+  await expect(page.locator(".lc-tooltip-root")).toContainText("股票/ETF");
+  await stocks.click();
+  await expect(stocks).toHaveAttribute("aria-pressed", "false");
+  await expect(chart.locator('g[opacity="0.2"]')).toHaveCount(0);
+});
