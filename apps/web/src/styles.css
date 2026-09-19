@@ -92,8 +92,6 @@
 
   html {
     background: #f7f7f2;
-    /* Prevent iOS double-tap zoom while preserving scrolling and pinch zoom. */
-    touch-action: manipulation;
   }
 
   body {
@@ -162,6 +160,4 @@ html.is-standalone #root {
   overflow-x: hidden;
   overflow-y: auto;
   overscroll-behavior: none;
-  /* Allow pinch zoom while preventing double-tap zoom in the installed PWA. */
-  touch-action: manipulation;
 }
