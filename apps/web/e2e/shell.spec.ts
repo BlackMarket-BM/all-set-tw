@@ -1803,3 +1803,66 @@ test("loads invoice line items only after opening an activity", async ({
   await expect(page.getByText("延遲載入品項", { exact: true })).toBeVisible();
   expect(detailRequests).toBe(1);
 });
+
+test.describe("mobile chart tooltip", () => {
+  test.use({ hasTouch: true, viewport: { width: 390, height: 844 } });
+
+  test("dismisses on scroll and allows selecting a point again", async ({
+    page,
+  }) => {
+    await page.route("**/api/history/net-worth/chart", async (route) => {
+      await route.fulfill({
+        json: [
+          {
+            date: "2026-08-13",
+            netWorth: 2000000,
+            assetType: "deposit",
+            source: "bank",
+          },
+          {
+            date: "2026-08-14",
+            netWorth: 2200000,
+            assetType: "deposit",
+            source: "bank",
+          },
+        ],
+      });
+    });
+    await page.goto("/#/overview");
+    await page.getByRole("tab", { name: "全部", exact: true }).click();
+    const chart = page
+      .getByRole("region", { name: "資產走勢" })
+      .locator("[data-chart]");
+    await chart.scrollIntoViewIfNeeded();
+    await chart.tap({ position: { x: 150, y: 100 } });
+    const tooltip = page.locator(".lc-tooltip-root");
+    await expect(tooltip).toBeVisible();
+    await page.evaluate(() => window.scrollBy(0, 120));
+    await expect(tooltip).toBeHidden();
+    await chart.scrollIntoViewIfNeeded();
+    await chart.tap({ position: { x: 150, y: 100 } });
+    await expect(tooltip).toBeVisible();
+    await chart.dispatchEvent("pointercancel", { pointerType: "touch" });
+    await expect(tooltip).toBeHidden();
+  });
+});
+
+test("sets double-tap protection before app scripts and styles load", async ({
+  page,
+}) => {
+  await page.route("**/*", async (route) => {
+    if (["script", "stylesheet"].includes(route.request().resourceType())) {
+      await route.abort();
+      return;
+    }
+    await route.fallback();
+  });
+  await page.goto("/");
+  for (const selector of ["html", "body", "#root"]) {
+    await expect(page.locator(selector)).toHaveCSS(
+      "touch-action",
+      "manipulation",
+    );
+  }
+  await expect(page.locator("html")).not.toHaveClass(/is-standalone/);
+});

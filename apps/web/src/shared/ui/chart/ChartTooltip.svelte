@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { onMount } from "svelte";
   import { getChartContext, Tooltip as TooltipPrimitive } from "layerchart";
   import { cn } from "@/shared/utils/cn";
   import { useChart } from "./chart-utils";
@@ -21,6 +22,22 @@
 
   const chart = useChart();
   const context = getChartContext();
+  onMount(() => {
+    const dismiss = () => {
+      context.tooltip.isHoveringTooltipContent = false;
+      context.tooltip.hide();
+    };
+    // Capture also catches scroll events from the app's nested scroll containers.
+    window.addEventListener("scroll", dismiss, {
+      capture: true,
+      passive: true,
+    });
+    window.addEventListener("pointercancel", dismiss, { capture: true });
+    return () => {
+      window.removeEventListener("scroll", dismiss, true);
+      window.removeEventListener("pointercancel", dismiss, true);
+    };
+  });
   const visibleSeries = $derived(
     context.tooltip.series.filter((series) => series.visible),
   );
