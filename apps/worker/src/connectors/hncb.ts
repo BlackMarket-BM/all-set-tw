@@ -33,6 +33,7 @@ const FRAME_READ_ATTEMPTS = 12;
 const FRAME_READ_RETRY_MS = 250;
 const USER_AGENT =
   "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
+const HNCB_LOGIN_READY_TIMEOUT_MS = 15_000;
 
 export class HncbVerificationRequiredError extends Error {
   constructor(message: string) {
@@ -294,13 +295,30 @@ async function loginWithOcr(
   for (let attempt = 1; attempt <= HNCB_AUTO_LOGIN_ATTEMPTS; attempt += 1) {
     try {
       const captcha = await openLoginAndCaptureCaptcha(page, config);
+      logHncbEvent("hncb_login_stage", { attempt, stage: "captcha_captured" });
       const answer = await recognizeCaptcha(
         toArrayBuffer(captcha.bytes),
         HNCB_CAPTCHA_DIGIT_COUNT,
       );
       assertCaptcha(answer, HNCB_CAPTCHA_DIGIT_COUNT);
+      logHncbEvent("hncb_login_stage", {
+        attempt,
+        stage: "captcha_recognized",
+      });
       const dialogMessage = await submitLogin(page, answer);
+      logHncbEvent("hncb_login_stage", {
+        attempt,
+        stage: "login_submitted",
+        href: describeHncbUrl(page.url()),
+        hasDialog: Boolean(dialogMessage),
+      });
       const outcome = await waitForLoginResult(page, dialogMessage);
+      logHncbEvent("hncb_login_stage", {
+        attempt,
+        stage: "login_result",
+        outcome,
+        href: describeHncbUrl(page.url()),
+      });
       if (outcome === "success") return;
       if (outcome === "credential") {
         throw new HncbCredentialRejectedError(
@@ -362,12 +380,7 @@ async function openLoginAndFill(page: Page, config: HncbConfig) {
   page.on("requestfailed", onRequestFailed);
   try {
     await gotoAllowingTimeout(page, LOGIN_URL);
-    await page.waitForFunction(
-      () =>
-        typeof (window as unknown as { doSubmit?: () => void }).doSubmit ===
-          "function" && Boolean(document.getElementById("USERIDTEXT")),
-      { timeout: 15_000 },
-    );
+    await waitForHncbLoginReady(page, HNCB_LOGIN_READY_TIMEOUT_MS);
   } catch (error) {
     const snapshot = await readHncbLoginSnapshot(page);
     logHncbEvent("hncb_login_page_unavailable", {
@@ -393,6 +406,15 @@ async function openLoginAndFill(page: Page, config: HncbConfig) {
   );
   await fillInput(page, "#NICKNAME", config.account ?? "");
   await fillInput(page, "#password", config.password ?? "");
+}
+
+async function waitForHncbLoginReady(page: Page, timeoutMs: number) {
+  await page.waitForFunction(
+    () =>
+      typeof (window as unknown as { doSubmit?: () => void }).doSubmit ===
+        "function" && Boolean(document.getElementById("USERIDTEXT")),
+    { timeout: timeoutMs },
+  );
 }
 
 async function captureCaptcha(page: Page) {
@@ -946,10 +968,26 @@ async function closeHncbBrowser(browser: Browser) {
   }
 }
 
+const hncbDialogGuardedPages = new WeakSet<Page>();
+
 async function configurePage(page: Page) {
   await page.setViewport({ width: 1280, height: 800 });
   await page.setUserAgent(USER_AGENT);
   page.setDefaultNavigationTimeout(NAVIGATION_TIMEOUT_MS);
+  guardHncbDialogs(page);
+}
+
+function guardHncbDialogs(page: Page) {
+  if (hncbDialogGuardedPages.has(page)) return;
+  hncbDialogGuardedPages.add(page);
+  // 未預期的 alert 會凍結頁面 JS 並讓自動化停止回應。一律自動關閉並記 log；
+  // 登入送出時另有 handler 記錄訊息做成敗分類，兩者並存不衝突。
+  page.on("dialog", (dialog: Dialog) => {
+    logHncbEvent("hncb_dialog_dismissed", {
+      message: safeHncbLogMessage(dialog.message()),
+    });
+    dialog.accept().catch(() => undefined);
+  });
 }
 
 async function fillInput(page: Page, selector: string, value: string) {
