@@ -196,6 +196,39 @@ describe("HNCB browser session lifecycle", () => {
     );
   });
 
+  it("dismisses unexpected dialogs without blocking automation", async () => {
+    const browserPage = page();
+    const browserInstance = browser(browserPage);
+    puppeteerMock.launch.mockResolvedValue(browserInstance);
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+
+    try {
+      await prepareHncbCaptcha({} as Fetcher, credentials);
+
+      const dialogHandler = browserPage.on.mock.calls.find(
+        ([event]) => event === "dialog",
+      )?.[1] as
+        | ((dialog: {
+            message: () => string;
+            accept: () => Promise<void>;
+          }) => void)
+        | undefined;
+      expect(dialogHandler).toBeTypeOf("function");
+      const accept = vi.fn().mockResolvedValue(undefined);
+      dialogHandler?.({
+        message: () => "Sorry, there was a problem!",
+        accept,
+      });
+
+      expect(accept).toHaveBeenCalledOnce();
+      expect(warn).toHaveBeenCalledWith(
+        expect.stringContaining("hncb_dialog_dismissed"),
+      );
+    } finally {
+      warn.mockRestore();
+    }
+  });
+
   it("reuses the pending captcha browser instead of launching another one", async () => {
     const browserPage = page();
     const browserInstance = browser(browserPage);
