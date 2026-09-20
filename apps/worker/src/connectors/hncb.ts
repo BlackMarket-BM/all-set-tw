@@ -27,6 +27,7 @@ const LOGIN_RESULT_POLL_MS = 500;
 const MAIN_FRAME_TIMEOUT_MS = 15_000;
 const SESSION_FRAME_TIMEOUT_MS = 6_000;
 const NAVIGATION_TIMEOUT_MS = 20_000;
+const GOTO_ALLOW_TIMEOUT_MS = 5_000;
 const ACTION_TIMEOUT_MS = 10_000;
 const FRAME_READ_ATTEMPTS = 12;
 const FRAME_READ_RETRY_MS = 250;
@@ -311,10 +312,23 @@ async function loginWithOcr(
       );
     } catch (error) {
       if (error instanceof HncbCredentialRejectedError) throw error;
+      logHncbEvent("hncb_auto_login_attempt_failed", {
+        attempt,
+        errorName: error instanceof Error ? error.name : typeof error,
+        message: safeHncbLogMessage(error),
+      });
       lastError = error;
     }
   }
   if (lastError instanceof HncbVerificationRequiredError) throw lastError;
+  if (isLoginPageUnavailable(lastError)) {
+    throw new HncbConnectionError(
+      "華南登入頁沒有在期限內載入完整表單，請稍後再試。",
+      undefined,
+      undefined,
+      lastError,
+    );
+  }
   throw new HncbVerificationRequiredError(
     `華南自動驗證連續失敗 ${HNCB_AUTO_LOGIN_ATTEMPTS} 次，請改用人工驗證。`,
   );
@@ -340,13 +354,31 @@ async function openLoginAndCaptureCaptcha(page: Page, config: HncbConfig) {
 }
 
 async function openLoginAndFill(page: Page, config: HncbConfig) {
-  await gotoAllowingTimeout(page, LOGIN_URL);
-  await page.waitForFunction(
-    () =>
-      typeof (window as unknown as { doSubmit?: () => void }).doSubmit ===
-        "function" && Boolean(document.getElementById("USERIDTEXT")),
-    { timeout: 15_000 },
-  );
+  const failedRequests: string[] = [];
+  const onRequestFailed = (request: { url: () => string }) => {
+    const path = describeHncbUrl(request.url());
+    if (path !== "unrecognized") failedRequests.push(path);
+  };
+  page.on("requestfailed", onRequestFailed);
+  try {
+    await gotoAllowingTimeout(page, LOGIN_URL);
+    await page.waitForFunction(
+      () =>
+        typeof (window as unknown as { doSubmit?: () => void }).doSubmit ===
+          "function" && Boolean(document.getElementById("USERIDTEXT")),
+      { timeout: 15_000 },
+    );
+  } catch (error) {
+    const snapshot = await readHncbLoginSnapshot(page);
+    logHncbEvent("hncb_login_page_unavailable", {
+      ...snapshot,
+      failedRequests: failedRequests.slice(0, 8),
+      message: safeHncbLogMessage(error),
+    });
+    throw error;
+  } finally {
+    page.off("requestfailed", onRequestFailed);
+  }
   await fillInput(page, "#USERIDTEXT", config.userId ?? "");
   await withActionTimeout(
     page.evaluate(() => {
@@ -693,14 +725,109 @@ function isRecoverableFrameError(error: unknown) {
 }
 
 async function gotoAllowingTimeout(page: Page, url: string) {
+  const startedAt = Date.now();
+  let status: number | undefined;
+  let timedOut = false;
   try {
-    await page.goto(url, {
+    // Cloudflare Puppeteer 不支援 waitUntil: "commit"。短 timeout 的
+    // DOMContentLoaded 只用來探測導覽是否卡住；真正就緒條件是後續的
+    // USERIDTEXT / 頁框，避免 parser-blocking 登入腳本把整個 20 秒耗完。
+    const response = await page.goto(url, {
       waitUntil: "domcontentloaded",
-      timeout: NAVIGATION_TIMEOUT_MS,
+      timeout: GOTO_ALLOW_TIMEOUT_MS,
     });
+    status = response?.status();
   } catch (error) {
-    if (!isNavigationTimeout(error)) throw error;
+    timedOut = isNavigationTimeout(error);
+    if (!timedOut) throw error;
   }
+  const snapshot = await readHncbLoginSnapshot(page);
+  logHncbEvent("hncb_navigation", {
+    target: describeHncbUrl(url),
+    elapsedMs: Date.now() - startedAt,
+    status: status ?? null,
+    timedOut,
+    ...snapshot,
+  });
+}
+
+async function readHncbLoginSnapshot(page: Page) {
+  const href = describeHncbUrl(page.url());
+  try {
+    const snapshot = await page.evaluate(
+      (submitName: string) => ({
+        href: location.href,
+        title: document.title.slice(0, 80),
+        readyState: document.readyState,
+        hasUser: Boolean(document.getElementById("USERIDTEXT")),
+        hasSubmit:
+          typeof (window as unknown as Record<string, unknown>)[submitName] ===
+          "function",
+        htmlLength: (document.documentElement?.outerHTML ?? "").length,
+      }),
+      "doSubmit",
+    );
+    return {
+      href: describeHncbUrl(snapshot.href) || href,
+      title: snapshot.title,
+      readyState: snapshot.readyState,
+      hasUser: snapshot.hasUser,
+      hasSubmit: snapshot.hasSubmit,
+      htmlLength: snapshot.htmlLength,
+    };
+  } catch {
+    return {
+      href,
+      title: "",
+      readyState: "",
+      hasUser: false,
+      hasSubmit: false,
+      htmlLength: 0,
+    };
+  }
+}
+
+function describeHncbUrl(value: string) {
+  if (!value || value === "about:blank") return "about:blank";
+  try {
+    const url = new URL(value);
+    return `${url.host}${url.pathname}`;
+  } catch {
+    return "unrecognized";
+  }
+}
+
+function logHncbEvent(event: string, fields: Record<string, unknown>) {
+  console.warn(
+    JSON.stringify({
+      event,
+      connectorId: "hncb",
+      ...fields,
+    }),
+  );
+}
+
+function safeHncbLogMessage(error: unknown) {
+  const message = error instanceof Error ? error.message : String(error);
+  return message
+    .replace(/https?:\/\/[^\s"'<>]+/gi, "[URL]")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 240);
+}
+
+function isLoginPageUnavailable(error: unknown) {
+  if (
+    error instanceof HncbCaptchaUnavailableError ||
+    error instanceof HncbCaptchaRejectedError
+  ) {
+    return false;
+  }
+  const message = error instanceof Error ? error.message : String(error);
+  return (
+    isNavigationTimeout(error) ||
+    /waiting for function failed|timeout \d+ ms exceeded/i.test(message)
+  );
 }
 
 async function waitForMainFrame(page: Page, timeoutMs = MAIN_FRAME_TIMEOUT_MS) {

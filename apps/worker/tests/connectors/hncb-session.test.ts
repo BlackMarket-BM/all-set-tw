@@ -63,8 +63,13 @@ function page(options?: {
   html?: string;
   startLoggedIn?: boolean;
   navigationTimeout?: boolean;
+  blankLoginPage?: boolean;
 }) {
-  let currentUrl = options?.startLoggedIn ? PERSONAL_JSP : LOGIN_URL;
+  let currentUrl = options?.startLoggedIn
+    ? PERSONAL_JSP
+    : options?.blankLoginPage
+      ? "about:blank"
+      : LOGIN_URL;
   const frame = mainFrame(options?.html ?? depositHtml);
   return {
     frame,
@@ -88,8 +93,21 @@ function page(options?: {
       .fn()
       .mockImplementation(async (fn: (...args: never[]) => unknown) => {
         const source = String(fn);
+        if (source.includes("readyState") && source.includes("USERIDTEXT")) {
+          const onLogin = currentUrl.includes("Login");
+          return {
+            href: currentUrl,
+            title: onLogin ? "華南銀行-個人網路銀行" : "",
+            readyState: options?.blankLoginPage ? "loading" : "complete",
+            hasUser: onLogin,
+            hasSubmit: onLogin,
+            htmlLength: onLogin ? 50_000 : 0,
+          };
+        }
         if (source.includes("innerText")) return "";
-        if (source.includes("doSubmit")) currentUrl = PERSONAL_JSP;
+        if (source.includes("setTimeout") && source.includes("doSubmit")) {
+          currentUrl = PERSONAL_JSP;
+        }
         return undefined;
       }),
     frames: vi
@@ -98,10 +116,15 @@ function page(options?: {
         currentUrl.includes("personal") ? [frame] : [],
       ),
     goto: vi.fn().mockImplementation(async (url: string) => {
+      if (options?.blankLoginPage) {
+        currentUrl = "about:blank";
+        throw new Error("Navigation timeout of 20000 ms exceeded");
+      }
       currentUrl = url;
       if (options?.navigationTimeout) {
         throw new Error("Navigation timeout of 30000 ms exceeded");
       }
+      return { status: () => 200 };
     }),
     off: vi.fn(),
     on: vi.fn(),
@@ -111,7 +134,13 @@ function page(options?: {
     setViewport: vi.fn().mockResolvedValue(undefined),
     type: vi.fn().mockResolvedValue(undefined),
     url: vi.fn().mockImplementation(() => currentUrl),
-    waitForFunction: vi.fn().mockResolvedValue(undefined),
+    waitForFunction: vi.fn().mockImplementation(async () => {
+      if (options?.blankLoginPage) {
+        throw new Error(
+          "waiting for function failed: timeout 15000ms exceeded",
+        );
+      }
+    }),
     waitForNavigation: vi.fn().mockImplementation(async () => {
       currentUrl = PERSONAL_JSP;
     }),
@@ -245,7 +274,7 @@ describe("HNCB browser session lifecycle", () => {
     browserPage.evaluate.mockImplementation(
       async (fn: (...args: never[]) => unknown) => {
         const source = String(fn);
-        if (source.includes("doSubmit")) {
+        if (source.includes("setTimeout") && source.includes("doSubmit")) {
           browserPage.url.mockReturnValue(PERSONAL_JSP);
           browserPage.frames.mockReturnValue([browserPage.frame]);
           return new Promise(() => {});
@@ -347,7 +376,9 @@ describe("HNCB browser session lifecycle", () => {
       async (fn: (...args: never[]) => unknown) => {
         const source = String(fn);
         if (source.includes("innerText")) return "";
-        if (source.includes("doSubmit")) sessionAlive = true;
+        if (source.includes("setTimeout") && source.includes("doSubmit")) {
+          sessionAlive = true;
+        }
         return undefined;
       },
     );
@@ -434,7 +465,7 @@ describe("HNCB browser session lifecycle", () => {
         if (source.includes("innerText")) {
           return submits < 2 ? "圖形驗證碼錯誤" : "";
         }
-        if (source.includes("doSubmit")) {
+        if (source.includes("setTimeout") && source.includes("doSubmit")) {
           submits += 1;
           if (submits >= 2) {
             browserPage.url.mockReturnValue(PERSONAL_JSP);
@@ -478,6 +509,53 @@ describe("HNCB browser session lifecycle", () => {
       createHncbConnector({} as Fetcher, recognize).sync(credentials),
     ).rejects.toBeInstanceOf(HncbCredentialRejectedError);
     expect(recognize).toHaveBeenCalledOnce();
+  });
+
+  it("treats a blank login page as a connection error instead of captcha failure", async () => {
+    const browserPage = page({ blankLoginPage: true });
+    const browserInstance = browser(browserPage);
+    puppeteerMock.launch.mockResolvedValue(browserInstance);
+    const recognize = vi.fn().mockResolvedValue("1234");
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+
+    await expect(
+      createHncbConnector({} as Fetcher, recognize).sync(credentials),
+    ).rejects.toMatchObject({
+      name: "HncbConnectionError",
+      message: "華南登入頁沒有在期限內載入完整表單，請稍後再試。",
+    });
+
+    expect(recognize).not.toHaveBeenCalled();
+    expect(browserPage.goto).toHaveBeenCalledTimes(3);
+    expect(browserPage.goto).toHaveBeenCalledWith(
+      LOGIN_URL,
+      expect.objectContaining({
+        waitUntil: "domcontentloaded",
+        timeout: 5_000,
+      }),
+    );
+    const events = warn.mock.calls.flatMap(([value]) => {
+      try {
+        const parsed: unknown = JSON.parse(String(value));
+        return parsed && typeof parsed === "object"
+          ? [parsed as Record<string, unknown>]
+          : [];
+      } catch {
+        return [];
+      }
+    });
+    expect(events.some((event) => event.event === "hncb_navigation")).toBe(
+      true,
+    );
+    expect(
+      events.some((event) => event.event === "hncb_login_page_unavailable"),
+    ).toBe(true);
+    expect(
+      events.some(
+        (event) => event.href === "about:blank" && event.hasUser === false,
+      ),
+    ).toBe(true);
+    warn.mockRestore();
   });
 
   it("throws when logged-in pages parse to empty data", async () => {

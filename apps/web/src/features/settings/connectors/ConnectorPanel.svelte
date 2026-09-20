@@ -257,6 +257,7 @@
       invalidateLatestSyncReport();
       qc.invalidateQueries({ queryKey: queryKeys.syncJobs });
       qc.invalidateQueries({ queryKey: queryKeys.summary });
+      enableScheduleAfterSuccessfulSync();
       if (
         connectorId === "esun" ||
         connectorId === "cathaybk" ||
@@ -367,12 +368,7 @@
       invalidateLatestSyncReport();
       qc.invalidateQueries({ queryKey: queryKeys.bank });
       qc.invalidateQueries({ queryKey: queryKeys.bills });
-      if (
-        (connectorId === "sinopac" || connectorId === "obank") &&
-        job &&
-        !job.enabled
-      )
-        $updateJob.mutate({ enabled: true });
+      enableScheduleAfterSuccessfulSync();
     },
     onError: (e) => {
       const failure = browserCaptchaFailure(e);
@@ -549,6 +545,18 @@
     resetCathayVerification();
     error = "";
     $sync.mutate("default");
+  }
+
+  function enableScheduleAfterSuccessfulSync() {
+    if (
+      (connectorId === "sinopac" ||
+        connectorId === "taishin" ||
+        connectorId === "obank") &&
+      job &&
+      !job.enabled
+    ) {
+      $updateJob.mutate({ enabled: true });
+    }
   }
 
   function finishTdccConnection() {

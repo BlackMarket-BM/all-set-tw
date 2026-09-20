@@ -231,6 +231,7 @@ export function createTaishinConnector(
           pageContext = await loginWithOcr(page, config, recognizeCaptcha);
         }
         authenticated = true;
+        await dismissPasswordReminder(pageContext);
 
         let payloads;
         try {
@@ -248,6 +249,7 @@ export function createTaishinConnector(
           stage = "login";
           pageContext = await loginWithOcr(page, config, recognizeCaptcha);
           authenticated = true;
+          await dismissPasswordReminder(pageContext);
           payloads = await fetchCreditCardPayloads(
             pageContext,
             (nextStage) => (stage = nextStage),
@@ -655,93 +657,123 @@ async function openLoginAndFill(page: Page, config: TaishinConfig) {
   const frame = await findLoginFrame(page);
   if (await isLoggedIn(frame)) return frame;
 
-  const selectors = await frame.evaluate(() => {
-    const inputs = Array.from(
-      document.querySelectorAll<HTMLInputElement>("input"),
-    );
-    const renderedInputs = inputs.filter((input) => {
-      const rect = input.getBoundingClientRect();
-      return (
-        !input.disabled &&
-        input.type !== "hidden" &&
-        rect.width > 0 &&
-        rect.height > 0
+  const selectors = await frame.evaluate(
+    (values: { userId: string; account: string; password: string }) => {
+      const inputs = Array.from(
+        document.querySelectorAll<HTMLInputElement>("input"),
       );
-    });
-    const candidateInputs =
-      renderedInputs.length >= 4
-        ? renderedInputs
-        : inputs.filter((input) => !input.disabled && input.type !== "hidden");
-    const labelText = (input: HTMLInputElement) => {
-      const explicit = input.id
-        ? document.querySelector<HTMLLabelElement>(
-            `label[for="${CSS.escape(input.id)}"]`,
-          )?.innerText
-        : "";
-      const ancestorText = [
-        input.parentElement?.innerText,
-        input.parentElement?.parentElement?.innerText,
-        input.parentElement?.parentElement?.parentElement?.innerText,
-      ].find((text) => text && text.length <= 80);
-      return [
-        input.id,
-        input.name,
-        input.placeholder,
-        input.getAttribute("aria-label"),
-        explicit,
-        ancestorText,
-      ]
-        .filter(Boolean)
-        .join(" ");
-    };
-    const mark = (input: HTMLInputElement | undefined, field: string) => {
-      if (!input) return "";
-      input.dataset.taishinField = field;
-      return `input[data-taishin-field="${field}"]`;
-    };
-    const find = (pattern: RegExp) =>
-      candidateInputs.find((input) => pattern.test(labelText(input)));
-    const password =
-      find(/使用者密碼|password|passwd/i) ??
-      candidateInputs.find((input) => input.type === "password");
-    const captcha =
-      find(/驗證碼|captcha|validate|check.?code/i) ??
-      candidateInputs.find(
+      const renderedInputs = inputs.filter((input) => {
+        const rect = input.getBoundingClientRect();
+        return (
+          !input.disabled &&
+          input.type !== "hidden" &&
+          rect.width > 0 &&
+          rect.height > 0
+        );
+      });
+      const candidateInputs =
+        renderedInputs.length >= 4
+          ? renderedInputs
+          : inputs.filter(
+              (input) => !input.disabled && input.type !== "hidden",
+            );
+      const labelText = (input: HTMLInputElement) => {
+        const explicit = input.id
+          ? document.querySelector<HTMLLabelElement>(
+              `label[for="${CSS.escape(input.id)}"]`,
+            )?.innerText
+          : "";
+        const parentText = input.parentElement?.innerText ?? "";
+        const localParent = parentText.length <= 20 ? parentText : "";
+        return [
+          input.id,
+          input.name,
+          input.placeholder,
+          input.getAttribute("aria-label"),
+          input.getAttribute("aria-placeholder"),
+          explicit,
+          input.closest("label")?.innerText,
+          localParent,
+        ]
+          .filter(Boolean)
+          .join(" ");
+      };
+      const mark = (input: HTMLInputElement | undefined, field: string) => {
+        if (!input) return "";
+        input.dataset.taishinField = field;
+        return `input[data-taishin-field="${field}"]`;
+      };
+      const setValue = (input: HTMLInputElement | undefined, value: string) => {
+        if (!input || !value) return;
+        input.focus();
+        const setter = Object.getOwnPropertyDescriptor(
+          window.HTMLInputElement.prototype,
+          "value",
+        )?.set;
+        setter?.call(input, value);
+        if (input.value !== value) input.value = value;
+        input.dispatchEvent(
+          new InputEvent("input", {
+            bubbles: true,
+            composed: true,
+            data: value,
+            inputType: "insertText",
+          }),
+        );
+        input.dispatchEvent(new Event("change", { bubbles: true }));
+      };
+      const find = (pattern: RegExp) =>
+        candidateInputs.find((input) => pattern.test(labelText(input)));
+      const password =
+        find(/使用者密碼|password|passwd/i) ??
+        candidateInputs.find((input) => input.type === "password");
+      const captcha =
+        find(/驗證碼|captcha|validate|check.?code/i) ??
+        candidateInputs.find(
+          (input) =>
+            input !== password &&
+            input.maxLength >= 4 &&
+            input.maxLength <= 8 &&
+            (input.inputMode === "numeric" || input.pattern.includes("\\d")),
+        ) ??
+        candidateInputs.at(-1);
+      const identityInputs = candidateInputs.filter(
         (input) =>
           input !== password &&
-          input.maxLength >= 4 &&
-          input.maxLength <= 8 &&
-          (input.inputMode === "numeric" || input.pattern.includes("\\d")),
-      ) ??
-      candidateInputs.at(-1);
-    const identityInputs = candidateInputs.filter(
-      (input) =>
-        input !== password &&
-        input !== captcha &&
-        ["", "text", "tel"].includes(input.type),
-    );
-    const matchedUserId = find(/身分證|統一編號|cust(?:omer)?id/i);
-    const userId =
-      matchedUserId && matchedUserId !== password && matchedUserId !== captcha
-        ? matchedUserId
-        : identityInputs[0];
-    const matchedAccount = find(
-      /使用者代(?:號|碼)|登入代(?:號|碼)|user(?:id|code)/i,
-    );
-    const account =
-      matchedAccount &&
-      matchedAccount !== userId &&
-      matchedAccount !== password &&
-      matchedAccount !== captcha
-        ? matchedAccount
-        : identityInputs.find((input) => input !== userId);
-    return {
-      userId: mark(userId, "user-id"),
-      account: mark(account, "account"),
-      password: mark(password, "password"),
-      captcha: mark(captcha, "captcha"),
-    };
-  });
+          input !== captcha &&
+          ["", "text", "tel"].includes(input.type),
+      );
+      const matchedUserId = find(/身分證|統一編號|cust(?:omer)?id/i);
+      const userId =
+        matchedUserId && matchedUserId !== password && matchedUserId !== captcha
+          ? matchedUserId
+          : identityInputs[0];
+      const matchedAccount = find(
+        /使用者代(?:號|碼)|登入代(?:號|碼)|user(?:id|code)/i,
+      );
+      const account =
+        matchedAccount &&
+        matchedAccount !== userId &&
+        matchedAccount !== password &&
+        matchedAccount !== captcha
+          ? matchedAccount
+          : identityInputs.find((input) => input !== userId);
+      setValue(userId, values.userId);
+      setValue(account, values.account);
+      setValue(password, values.password);
+      return {
+        userId: mark(userId, "user-id"),
+        account: mark(account, "account"),
+        password: mark(password, "password"),
+        captcha: mark(captcha, "captcha"),
+      };
+    },
+    {
+      userId: config.userId ?? "",
+      account: config.account ?? "",
+      password: config.password ?? "",
+    },
+  );
   if (
     !selectors.userId ||
     !selectors.account ||
@@ -750,9 +782,6 @@ async function openLoginAndFill(page: Page, config: TaishinConfig) {
   ) {
     throw new TaishinConnectionError("台新登入頁欄位結構已變更。");
   }
-  await typeInput(frame, selectors.userId, config.userId!);
-  await typeInput(frame, selectors.account, config.account!);
-  await typeInput(frame, selectors.password, config.password!);
   return frame;
 }
 
@@ -776,7 +805,7 @@ async function openLoginAndCaptureCaptcha(page: Page, config: TaishinConfig) {
 }
 
 async function typeInput(page: BrowserPage, selector: string, value: string) {
-  await page.type(selector, value);
+  await page.type(selector, value, { delay: 20 });
 }
 
 async function captureCaptcha(page: BrowserPage) {
@@ -933,6 +962,12 @@ async function submitLogin(
 
     for (let attempt = 0; attempt < LOGIN_RESULT_ATTEMPTS; attempt += 1) {
       const detail = await readLoginDetail(page);
+      if (isMissingLoginField(detail)) {
+        await dismissMissingFieldAlert(page);
+        throw new TaishinLoginOutcomeUnknownError(
+          "台新登入頁沒有帶入身分證字號，將重新嘗試。",
+        );
+      }
       if (isCaptchaRejected(detail)) {
         throw new TaishinCaptchaRejectedError("台新圖形驗證碼錯誤。");
       }
@@ -1026,6 +1061,49 @@ async function readLoginDetail(page: BrowserPage) {
     .catch(() => "");
 }
 
+function isMissingLoginField(detail: string) {
+  return /請輸入身分證字號|請輸入.*統一編號/.test(detail);
+}
+
+async function dismissMissingFieldAlert(page: BrowserPage) {
+  try {
+    await page.waitForFunction(
+      () => {
+        const normalize = (value: string | null | undefined) =>
+          value?.replace(/\s+/g, "").trim() ?? "";
+        const roots = [
+          ...document.querySelectorAll<HTMLElement>(
+            "dialog, [role='dialog'], .js-popup.active, .modal, .popup",
+          ),
+          document.body,
+        ];
+        for (const root of roots) {
+          if (!root || !/請輸入身分證字號/.test(normalize(root.innerText))) {
+            continue;
+          }
+          const confirm = Array.from(
+            root.querySelectorAll<HTMLElement>(
+              "button, a, [role='button'], input[type='button']",
+            ),
+          ).find((element) => {
+            const label = normalize(
+              element.innerText || (element as HTMLInputElement).value,
+            );
+            return label === "確定";
+          });
+          if (!confirm) continue;
+          confirm.click();
+          return true;
+        }
+        return false;
+      },
+      { timeout: 1_000 },
+    );
+  } catch {
+    // The validation dialog may already have closed.
+  }
+}
+
 function isCaptchaRejected(detail: string) {
   return (
     /驗證碼.{0,30}(?:錯誤|有誤|不正確|無效)/.test(detail) ||
@@ -1050,6 +1128,81 @@ async function isLoggedIn(page: BrowserPage) {
         !document.body.innerText.includes("身分證字號"),
     )
     .catch(() => false);
+}
+
+async function dismissPasswordReminder(page: BrowserPage) {
+  try {
+    const handle = await page.waitForFunction(
+      () => {
+        const normalize = (value: string | null | undefined) =>
+          value?.replace(/\s+/g, "").trim() ?? "";
+        const isReminder = (text: string) =>
+          /每(?:三|3)個月變更一次密碼|密碼(?:已)?(?:超過|逾)?(?:3個月|三個月|90天|未更新|未變更)/.test(
+            text,
+          );
+        const isVisible = (element: HTMLElement) => {
+          if (
+            element.hidden ||
+            element.getAttribute("aria-hidden") === "true"
+          ) {
+            return false;
+          }
+          const rect = element.getBoundingClientRect();
+          return rect.width > 0 && rect.height > 0;
+        };
+        const closeButton = (root: {
+          querySelectorAll: typeof document.querySelectorAll;
+        }) =>
+          Array.from(
+            root.querySelectorAll<HTMLElement>(
+              "button, a, [role='button'], input[type='button']",
+            ),
+          ).find((element) => {
+            const label = normalize(
+              element.innerText ||
+                (element as HTMLInputElement).value ||
+                element.getAttribute("aria-label") ||
+                element.title,
+            );
+            return isVisible(element) && label === "關閉";
+          });
+
+        const dialogs = Array.from(
+          document.querySelectorAll<HTMLElement>(
+            "dialog, [role='dialog'], .js-popup.active, .modal, .popup",
+          ),
+        );
+        for (const dialog of dialogs) {
+          if (!isReminder(normalize(dialog.innerText))) continue;
+          const dismiss = closeButton(dialog);
+          if (!dismiss) continue;
+          dismiss.click();
+          return true;
+        }
+
+        if (!isReminder(normalize(document.body?.innerText))) return false;
+        const dismiss = closeButton(document);
+        if (!dismiss) return false;
+        dismiss.click();
+        return true;
+      },
+      { timeout: 2_000 },
+    );
+    const dismissed =
+      handle && typeof handle.jsonValue === "function"
+        ? Boolean(await handle.jsonValue())
+        : false;
+    if (dismissed) {
+      console.warn(
+        JSON.stringify({
+          event: "taishin_password_reminder_dismissed",
+          connectorId: "taishin",
+        }),
+      );
+    }
+  } catch {
+    // No reminder, or the overlay closed before the click landed.
+  }
 }
 
 async function findLoginFrame(page: Page): Promise<BrowserPage> {
