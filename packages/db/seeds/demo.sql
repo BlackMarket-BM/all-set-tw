@@ -249,7 +249,8 @@ series AS (
           WHEN n % 8 = 7 THEN -7000
           ELSE 0
         END AS fund_value,
-    1810000 + CAST((70000 * n) / 84 AS INTEGER) AS home_value,
+    -- 讓最新淨資產為 NT$7,654,321，避免被誤認為真實資產。
+    1860187 + CAST((70000 * n) / 84 AS INTEGER) AS home_value,
     168000 + CAST((13040 * n) / 84 AS INTEGER)
       + CASE
           WHEN n IN (0, 84) THEN 0
