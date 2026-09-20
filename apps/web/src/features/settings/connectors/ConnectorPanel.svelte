@@ -60,6 +60,7 @@
   const jobs = createQuery(syncJobsQuery(() => api));
   const defaultSchedule = createQuery(syncScheduleQuery(() => api));
   let values = $state<Record<string, string>>({});
+  let focusedCredentialKeys = $state<Record<string, boolean>>({});
   let error = $state("");
   let otp = $state("");
   let tdccSetupStep = $state<"credentials" | "email" | "sms" | "complete">(
@@ -257,6 +258,7 @@
       invalidateLatestSyncReport();
       qc.invalidateQueries({ queryKey: queryKeys.syncJobs });
       qc.invalidateQueries({ queryKey: queryKeys.summary });
+      enableScheduleAfterSuccessfulSync();
       if (
         connectorId === "esun" ||
         connectorId === "cathaybk" ||
@@ -367,12 +369,7 @@
       invalidateLatestSyncReport();
       qc.invalidateQueries({ queryKey: queryKeys.bank });
       qc.invalidateQueries({ queryKey: queryKeys.bills });
-      if (
-        (connectorId === "sinopac" || connectorId === "obank") &&
-        job &&
-        !job.enabled
-      )
-        $updateJob.mutate({ enabled: true });
+      enableScheduleAfterSuccessfulSync();
     },
     onError: (e) => {
       const failure = browserCaptchaFailure(e);
@@ -549,6 +546,18 @@
     resetCathayVerification();
     error = "";
     $sync.mutate("default");
+  }
+
+  function enableScheduleAfterSuccessfulSync() {
+    if (
+      (connectorId === "sinopac" ||
+        connectorId === "taishin" ||
+        connectorId === "obank") &&
+      job &&
+      !job.enabled
+    ) {
+      $updateJob.mutate({ enabled: true });
+    }
   }
 
   function finishTdccConnection() {
@@ -1037,80 +1046,95 @@
           >已安全儲存</span
         >{/if}
     </div>
-    <div class="grid gap-3 p-4">
-      {#each fields as field (field.key)}
-        {@const storedCredential = Boolean(
-          $settings.data?.configured &&
-          (connectorId !== "tdcc" || tdccCredentialsComplete) &&
-          (field.type === "text" || field.type === "password"),
-        )}
-        {@const hasReplacement = Boolean(String(values[field.key] ?? ""))}
-        <label class="grid gap-1.5 text-sm font-medium">
-          <span class="flex flex-wrap items-center gap-2">
-            <span>{field.label}</span>
-            {#if storedCredential}
-              <span
-                class={`rounded-full px-2 py-0.5 text-sm font-semibold ${hasReplacement ? "bg-steel/10 text-steel" : "bg-moss/10 text-moss"}`}
-              >
-                {hasReplacement ? "將更新" : "已儲存"}
-              </span>
-            {/if}
-          </span>
-          <Input
-            class={storedCredential && !hasReplacement
-              ? "bg-moss/[0.035] placeholder:text-ink/55"
-              : ""}
-            type={field.type}
-            placeholder={storedCredential && !hasReplacement
-              ? "••••••••　已安全儲存"
-              : field.placeholder}
-            value={String(values[field.key] ?? "")}
-            oninput={(e: Event) =>
-              (values[field.key] = (e.currentTarget as HTMLInputElement).value)}
-          />
-        </label>
-      {/each}
-    </div>
-    <div
-      class="flex flex-wrap items-center justify-between gap-3 border-t border-border bg-paper/70 px-4 py-3"
-    >
-      <p class="text-sm text-muted-foreground">
-        {connectorId === "tdcc"
-          ? tdccConnectionReady
-            ? "重新填寫任一欄位會清除舊的登入狀態並重新驗證。"
-            : "按下後會先登入集保；只有集保要求裝置驗證時才會寄信。"
-          : "儲存完成後，再使用上方的同步按鈕測試連線。"}
-      </p>
-      {#if connectorId === "tdcc"}
-        <Button
-          size="sm"
-          disabled={$connectTdcc.isPending || $verifyOtp.isPending || demoMode}
-          onclick={() => {
-            error = "";
-            tdccSetupStep = "credentials";
-            $connectTdcc.mutate();
-          }}
-          ><ShieldCheck class="size-4" />{$connectTdcc.isPending
-            ? "正在連線…"
-            : tdccConnectionReady
-              ? "更新並重新連線"
-              : "連線並取得驗證碼"}</Button
-        >
-      {:else}
-        <Button
-          size="sm"
-          disabled={$save.isPending}
-          onclick={() => {
-            error = "";
-            $save.reset();
-            $save.mutate(buildConfig());
-          }}
-          ><Save class="size-4" />{$save.isPending
-            ? "儲存中…"
-            : "儲存憑證"}</Button
-        >
-      {/if}
-    </div>
+    <form autocomplete="off" onsubmit={(event) => event.preventDefault()}>
+      <div class="grid gap-3 p-4">
+        {#each fields as field (field.key)}
+          {@const storedCredential = Boolean(
+            $settings.data?.configured &&
+            (connectorId !== "tdcc" || tdccCredentialsComplete) &&
+            (field.type === "text" || field.type === "password"),
+          )}
+          {@const hasReplacement = Boolean(String(values[field.key] ?? ""))}
+          <label class="grid gap-1.5 text-sm font-medium">
+            <span class="flex flex-wrap items-center gap-2">
+              <span>{field.label}</span>
+              {#if storedCredential}
+                <span
+                  class={`rounded-full px-2 py-0.5 text-sm font-semibold ${hasReplacement ? "bg-steel/10 text-steel" : "bg-moss/10 text-moss"}`}
+                >
+                  {hasReplacement ? "將更新" : "已儲存"}
+                </span>
+              {/if}
+            </span>
+            <Input
+              class={storedCredential && !hasReplacement
+                ? "bg-moss/[0.035] placeholder:text-ink/55"
+                : ""}
+              type={field.type}
+              name={`tfh-${connectorId}-${field.key}`}
+              autocomplete={field.type === "password" ? "new-password" : "off"}
+              autocapitalize="none"
+              spellcheck={false}
+              readonly={!focusedCredentialKeys[field.key]}
+              data-1p-ignore
+              data-lpignore="true"
+              data-form-type="other"
+              placeholder={storedCredential && !hasReplacement
+                ? "••••••••　已安全儲存"
+                : field.placeholder}
+              value={String(values[field.key] ?? "")}
+              onfocus={() => (focusedCredentialKeys[field.key] = true)}
+              oninput={(e: Event) =>
+                (values[field.key] = (
+                  e.currentTarget as HTMLInputElement
+                ).value)}
+            />
+          </label>
+        {/each}
+      </div>
+      <div
+        class="flex flex-wrap items-center justify-between gap-3 border-t border-border bg-paper/70 px-4 py-3"
+      >
+        <p class="text-sm text-muted-foreground">
+          {connectorId === "tdcc"
+            ? tdccConnectionReady
+              ? "重新填寫任一欄位會清除舊的登入狀態並重新驗證。"
+              : "按下後會先登入集保；只有集保要求裝置驗證時才會寄信。"
+            : "儲存完成後，再使用上方的同步按鈕測試連線。"}
+        </p>
+        {#if connectorId === "tdcc"}
+          <Button
+            size="sm"
+            disabled={$connectTdcc.isPending ||
+              $verifyOtp.isPending ||
+              demoMode}
+            onclick={() => {
+              error = "";
+              tdccSetupStep = "credentials";
+              $connectTdcc.mutate();
+            }}
+            ><ShieldCheck class="size-4" />{$connectTdcc.isPending
+              ? "正在連線…"
+              : tdccConnectionReady
+                ? "更新並重新連線"
+                : "連線並取得驗證碼"}</Button
+          >
+        {:else}
+          <Button
+            size="sm"
+            disabled={$save.isPending}
+            onclick={() => {
+              error = "";
+              $save.reset();
+              $save.mutate(buildConfig());
+            }}
+            ><Save class="size-4" />{$save.isPending
+              ? "儲存中…"
+              : "儲存憑證"}</Button
+          >
+        {/if}
+      </div>
+    </form>
   </section>
   {#if $save.isError}<p class="mt-2 text-sm font-medium text-coral">
       儲存失敗：{error}

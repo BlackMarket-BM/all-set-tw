@@ -304,6 +304,10 @@ describe("Taishin browser session lifecycle", () => {
     expect(browserPage.setCookie).toHaveBeenCalledOnce();
     expect(recognize).not.toHaveBeenCalled();
     expect(result.bankAccounts).toHaveLength(1);
+    expect(browserPage.waitForFunction).toHaveBeenCalledWith(
+      expect.any(Function),
+      expect.objectContaining({ timeout: 2_000 }),
+    );
     expect(browserPage.evaluate).toHaveBeenCalledWith(expect.any(Function), {
       path: "/TIBNetBank/svc/web4/rb0708rwd/qryRealTime",
       body: "",
@@ -1039,6 +1043,10 @@ describe("Taishin browser session lifecycle", () => {
     expect(result.bankAccounts).toHaveLength(1);
     expect(recognize).toHaveBeenCalledOnce();
     expect(browserInstance.close).toHaveBeenCalledOnce();
+    expect(browserPage.waitForFunction).toHaveBeenCalledWith(
+      expect.any(Function),
+      expect.objectContaining({ timeout: 2_000 }),
+    );
   });
 
   it("stops automatic login immediately when credentials are rejected", async () => {

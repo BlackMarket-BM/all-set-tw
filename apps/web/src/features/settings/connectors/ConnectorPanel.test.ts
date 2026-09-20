@@ -179,6 +179,25 @@ describe("ConnectorPanel", () => {
     expect(api.patch).not.toHaveBeenCalled();
   });
 
+  it("keeps connector credential fields from inviting browser autofill", async () => {
+    const { getByLabelText } = renderFirstbankPanel();
+    const userId = getByLabelText("身分證字號／統編");
+    const account = getByLabelText("登入代號");
+    const password = getByLabelText("網路銀行密碼");
+
+    expect(userId).toHaveAttribute("autocomplete", "off");
+    expect(userId).toHaveAttribute("name", "tfh-firstbank-userId");
+    expect(userId).toHaveAttribute("readonly");
+    expect(account).toHaveAttribute("autocomplete", "off");
+    expect(account).toHaveAttribute("readonly");
+    expect(password).toHaveAttribute("autocomplete", "new-password");
+    expect(password).toHaveAttribute("readonly");
+
+    await fireEvent.focus(account);
+    expect(account).not.toHaveAttribute("readonly");
+    expect(password).toHaveAttribute("readonly");
+  });
+
   it("shows a fallback when a failed sync has an empty stored error", async () => {
     const { findByText } = renderEinvoicePanel([
       [syncJob({ lastStatus: "failed", lastError: "" })],
