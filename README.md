@@ -8,8 +8,6 @@
 
 **可免費自架：** 可透過 [Cloudflare Workers Free Plan](https://developers.cloudflare.com/workers/platform/pricing/) 一鍵部署，不需要自行準備伺服器；一般個人低頻使用可從免費方案開始。
 
-> 本專案以 [kevchentw/taiwan-fin-hub](https://github.com/kevchentw/taiwan-fin-hub) 為基礎，持續擴充資料來源、同步流程與 UI/UX。感謝原作者與貢獻者奠定專案基礎。
-
 ## 目前介面
 
 以下畫面使用匿名 Demo 資料，取自目前版本。
@@ -50,8 +48,6 @@
 本專案使用的 Workers、D1、Queues、Workers AI 與 Browser Run 均提供免費額度。各項免費額度並非無限；超過服務限制時，相關功能可能暫停至額度重置。
 
 **需要：** [Cloudflare 帳號](https://dash.cloudflare.com/signup)、[GitHub 帳號](https://github.com/signup)
-
-> 玉山、國泰、永豐、台新、華南與第一銀行會使用 [Browser Run](https://developers.cloudflare.com/browser-run/pricing/)。Workers Free Plan 目前每日包含 10 分鐘瀏覽器使用量；實際額度以 Cloudflare 最新方案為準。
 
 ### 步驟一：一鍵部署
 
@@ -174,7 +170,13 @@ npm run build
 
 ## 技術架構
 
-前端使用 Svelte 5、TypeScript、Tailwind CSS 4 與 shadcn-svelte；後端執行於 Cloudflare Workers，以 Hono 提供 API，並整合 D1、Access、Browser Run、Workers AI、Cron Triggers 與 Queues。專案以 npm workspaces 管理 Web、Worker、共用型別、資料庫與連接器套件。前後端與共用套件皆使用 TypeScript 7 型別檢查；Svelte 前端透過 `svelte-check --tsgo` 執行，並保留工具所需的 TypeScript 6 相依。
+前端使用 Svelte 5、TypeScript、Tailwind CSS 4 與 shadcn-svelte。
+
+後端執行於 Cloudflare Workers，以 Hono 提供 API，並整合 D1、Access、Browser Run、Workers AI、Cron Triggers 與 Queues。
+
+專案以 npm workspaces 管理 Web、Worker、共用型別、資料庫與連接器套件。
+
+前後端與共用套件皆使用 TypeScript 7 型別檢查；Svelte 前端透過 `svelte-check --tsgo` 執行，並保留工具所需的 TypeScript 6 相依。
 
 詳細設計請參考[後端架構](docs/002-backend-architecture.md)、[前端架構](docs/003-frontend-architecture.md)與[連接器開發](docs/004-connector-development.md)。
 
@@ -191,3 +193,5 @@ npm run build
 ## License
 
 本專案採用 [MIT License](LICENSE)，並保留原專案的著作權與授權聲明。
+
+> 本專案以 [kevchentw/taiwan-fin-hub](https://github.com/kevchentw/taiwan-fin-hub) 為基礎發展而來。感謝原作者與貢獻者奠定專案基礎。
