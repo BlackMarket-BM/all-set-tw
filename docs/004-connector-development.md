@@ -22,14 +22,14 @@ Connector 採三層 registry：
 
 新增 connector 前先選擇最接近的連接模式：
 
-| Mode                      | 適用情境                                                 | 現有範例                   |
-| ------------------------- | -------------------------------------------------------- | -------------------------- |
-| `api_credentials`         | 帳密登入外部 API，可自行更新 token                       | 電子發票、中信、新光       |
-| `api_captcha_session`     | App API 登入含 CAPTCHA，challenge 僅短暫加密保存         | 王道銀行                   |
-| `api_device_otp`          | API 登入，首次裝置需要 OTP                               | 集保 e 存摺                |
-| `browser_per_sync`        | 每次同步都必須以 Browser 登入與擷取                      | 國泰世華                   |
-| `browser_session`         | Browser 只負責登入，後續使用可復用的 HTTP session        | 玉山                       |
-| `browser_captcha_session` | Browser 登入含 CAPTCHA，可由 AI 或人工完成並復用 session | 永豐、台新、華南、第一銀行 |
+| Mode                      | 適用情境                                                 | 現有範例                         |
+| ------------------------- | -------------------------------------------------------- | -------------------------------- |
+| `api_credentials`         | 帳密登入外部 API，可自行更新 token                       | 電子發票、中信、新光             |
+| `api_captcha_session`     | App API 登入含 CAPTCHA，challenge 僅短暫加密保存         | 王道銀行                         |
+| `api_device_otp`          | API 登入，首次裝置需要 OTP                               | 集保 e 存摺                      |
+| `browser_per_sync`        | 每次同步都必須以 Browser 登入與擷取                      | 國泰世華                         |
+| `browser_session`         | Browser 只負責登入，後續使用可復用的 HTTP session        | 玉山                             |
+| `browser_captcha_session` | Browser 登入含 CAPTCHA，可由 AI 或人工完成並復用 session | 永豐、台新、華南、第一銀行、凱基 |
 
 不要為單一銀行建立新的通用框架。只有登入生命週期真的不同時才新增 mode，並同時補上 catalog 說明及共同測試。
 
@@ -108,6 +108,23 @@ session 重連、瀏覽器建立後的操作與銀行登入不在此重試範圍
 只有入口不存在時重新取得功能頁並最多重試一次；觸發後導覽／context 中斷
 則等待原查詢回應，不重複送出。三種預期 API 回應仍須完整取得才算成功；
 入口失敗以 `card-entry-*` log 區分，錯誤內容須遮罩。
+
+玉山網銀已改走新版 `/esb/`。登入欄位是 `input[name="id"]`、
+`input[name="userName"]`、`input[name="pxssword"]`；重複登入代碼 `9005`
+要再送一次「確定登入」。信用卡即時消費與近一年明細來自
+`iesc.esunbank.com` 的 `realTime/getDetailResult` 與
+`creditLastYear/getFilterResult`，存款明細要先呼叫任務 `home/init` 再查詢。
+即時授權與之後入帳必須沿用原本的消費日期、商店、金額與卡片組成 `sourceId`，
+授權時間只補在 `authorizedAt`。每筆卡片交易的 `raw.esunFeed` 標記來源為
+`realtime` 或 `history`；同名的即時紀錄併入明細並補上時間，不另產生流水號。
+
+即時紀錄常以支付通道命名（如 `LINEPAY*…`），明細則是特店名稱，因此每次同步後
+另在 `bank_transactions` 以 `matched_transaction_id` 把未配對的即時授權連到明細：
+限同卡、同消費日、同幣別、同金額，不比對名稱，依授權時間與 `sourceId` 順序一對一
+分配。明細（未入帳或已入帳）保留正式名稱，只補入授權時間；首次配對時移轉授權的
+個別分類、計算偏好與發票關係。已配對關係不重新分配，被連到的明細不再接受其他授權。
+沒有 `esunFeed` 的舊資料，以「待入帳且 `authorized_at` 含時間」判定為即時授權。
+同日多筆同額消費可能對調刷卡時間，但筆數與金額正確；找不到明細的授權照常顯示。
 
 ## 正規化資料契約
 
@@ -190,6 +207,13 @@ session 重連、瀏覽器建立後的操作與銀行登入不在此重試範圍
 - 華南分頁必須常駐 dialog 自動關閉 handler。未預期的 `alert` 會凍結頁面 JavaScript 並使自動化停止回應；送出登入時另有 handler 記錄訊息做成敗分類，兩者並存。
 - 台新登入後若出現「訊息通知／每三個月變更一次密碼」彈窗，必須點「關閉」後再抓資料。不得點「前往修改」或「3個月後提醒」，也不得停在彈窗卻因為 session API 仍可用而回報同步成功。
 - 新 connector 必須透過 D1 migration 建立 `<connectorId>:all` sync job，預設停用。
+- 凱基每次同步都需要 6 位數圖形驗證碼。手動與排程同步預設以 Workers AI 自動辨識，每次登入最多嘗試三張新驗證碼；連續失敗時標記 `needs_user_action`。`prepareChallenge` 保留人工 fallback，以 Browser Run 開啟登入頁、填入帳密並回傳驗證碼圖片，同步時接回同一 Browser session 送出。
+- 凱基登入頁以 Ionic `ion-img.recaptcha-image` 顯示驗證碼，base64 圖片可能位於 host `src` property 或 Shadow DOM 內的 `<img>`；connector 必須同時支援這兩種位置，並保留舊版一般 `<img>` fallback。
+- 凱基新版登入按鈕沒有 `type="submit"`，以 `button.btn.btn-primary.w-100` 識別，並保留舊版 `button[type="submit"]` fallback。按鈕不存在或表單驗證尚未使按鈕啟用時必須停止，不得視為已送出登入。
+- 凱基身分證與密碼欄位會在輸入過程動態改成遮罩值，不得以 Puppeteer `type()` 逐字輸入，否則後續字元會寫入遮罩後的文字。必須一次設定完整值並派送單一 `input` / `change` event，再以 Angular `ng-valid` 與登入按鈕狀態確認。
+- 凱基同一身分證只允許單一登入。遇到 `connect/token` 回應 `isSSOExsit` 時，手動與排程同步都比照使用者操作確認「繼續登入」，會登出行動銀行 App；同步結束（成功或失敗）都呼叫 `Account/AccountLogout/Logout` 釋放登入。
+- 凱基連續三次密碼錯誤會停權。`connect/token` 被拒絕或頁面顯示密碼／代號錯誤時一律標記 `needs_user_action` 並清除驗證狀態，不得重試；只有尚未送出帳密且頁面明確顯示驗證碼錯誤時才視為驗證碼錯誤。
+- 凱基資料由登入後頁面自身 API 請求的授權 header（`authorization`、`ocp-apim-subscription-key`、`x-c-*`）於頁面內呼叫 `TwdDemandDepositDetail/AcctQuery` 與 `TxnQuery`；交易 `sourceId` 以帳號、秒精度交易時間、金額與交易後餘額雜湊，不依賴 `recNo`。
 
 ### 集保分段同步
 
