@@ -4,6 +4,8 @@
 
 # 不用記帳
 
+此 Fork 新增 Binance、Bybit、OKX 唯讀資產 Connector，API 憑證加密存於 D1，資產換算 TWD 並納入總資產。支援範圍、設定與自動更新維護方式見 [交易所擴充說明](docs/exchange-connectors.md)。
+
 **ALL SET — 自動同步銀行、信用卡、投資與電子發票的自架個人財務整合工具。**
 
 **可免費自架：** 可透過 [Cloudflare Workers Free Plan](https://developers.cloudflare.com/workers/platform/pricing/) 一鍵部署，不需要自行準備伺服器；一般個人低頻使用可從免費方案開始。

@@ -17,6 +17,9 @@ export type PushNotificationPayload = {
 };
 
 const connectorLabels: Record<ConnectorId, string> = {
+  binance: "Binance",
+  bybit: "Bybit",
+  okx: "OKX",
   einvoice: "電子發票",
   tdcc: "集保 e 存摺",
   esun: "玉山銀行",

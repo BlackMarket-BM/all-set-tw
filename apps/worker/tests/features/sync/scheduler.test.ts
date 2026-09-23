@@ -1,6 +1,9 @@
 import type { ConnectorId } from "@taiwan-fin-hub/core";
 import type { SyncJobRow } from "@taiwan-fin-hub/db";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+vi.mock("../../../src/features/sync/exchange-service", () => ({
+  syncExchangeAssets: vi.fn(),
+}));
 import type { Env } from "../../../src/platform/env";
 
 const mocks = vi.hoisted(() => ({

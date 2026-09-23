@@ -1,3 +1,4 @@
+import { exchangeFields } from "./exchange-fields";
 import {
   connectorCatalog,
   supportedConnectorIds,
@@ -25,6 +26,9 @@ type ConnectorFieldMap = {
 };
 
 export const connectorFields = {
+  binance: [...exchangeFields.binance],
+  bybit: [...exchangeFields.bybit],
+  okx: [...exchangeFields.okx],
   einvoice: [
     { key: "mobile", label: "手機號碼（電子發票帳號）", type: "text" },
     { key: "password", label: "電子發票 App 登入密碼", type: "password" },

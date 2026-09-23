@@ -1,3 +1,8 @@
+import {
+  exchangeConnectorCatalog,
+  exchangeConnectorIds,
+} from "./exchange-catalog";
+
 export interface NetWorthHistoryPoint {
   date: string; // YYYY-MM-DD
   netWorth: number;
@@ -275,6 +280,7 @@ export interface ApiErrorResponse {
 }
 
 export const supportedConnectorIds = [
+  ...exchangeConnectorIds,
   "einvoice",
   "tdcc",
   "esun",
@@ -322,6 +328,7 @@ export interface ConnectorCatalogEntry {
 }
 
 export const connectorCatalog = {
+  ...exchangeConnectorCatalog,
   einvoice: {
     id: "einvoice",
     title: "電子發票",

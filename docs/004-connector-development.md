@@ -1,5 +1,7 @@
 # Connector 開發規範
 
+Fork 的 Binance／Bybit／OKX 擴充沿用以下三層 registry、加密設定與 staged persistence；詳見 [交易所擴充說明](exchange-connectors.md)。
+
 本文件定義 Taiwan Fin Hub 新增與維護 connector 的共同流程。目標是讓 connector 的識別資訊、設定欄位、同步執行、敏感狀態、前端表單與測試保持同步，避免只完成其中一層便上線。
 
 ## 共同註冊點

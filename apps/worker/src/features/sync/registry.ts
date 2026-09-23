@@ -1,4 +1,5 @@
 import { connectorCatalog, type ConnectorId } from "@taiwan-fin-hub/core";
+import { syncExchangeAssets } from "./exchange-service";
 import type { SyncTrigger } from "@taiwan-fin-hub/db";
 import type { Env } from "../../platform/env";
 import {
@@ -46,6 +47,9 @@ export const connectorRuntimeRegistry: Record<
   ConnectorId,
   ConnectorRuntimeDefinition
 > = {
+  binance: { run: (env) => syncExchangeAssets(env, "binance") },
+  bybit: { run: (env) => syncExchangeAssets(env, "bybit") },
+  okx: { run: (env) => syncExchangeAssets(env, "okx") },
   einvoice: {
     run: async () => {
       throw new Error(

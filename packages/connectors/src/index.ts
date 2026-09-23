@@ -1,3 +1,9 @@
+import {
+  binanceConfigSchema,
+  bybitConfigSchema,
+  okxConfigSchema,
+} from "./exchanges";
+export * from "./exchanges";
 import type {
   Connector,
   ConnectorId,
@@ -780,6 +786,9 @@ function dedupeInvoiceLineItems(
 }
 
 export const connectorConfigSchemas = {
+  binance: binanceConfigSchema,
+  bybit: bybitConfigSchema,
+  okx: okxConfigSchema,
   einvoice: invoiceConfigSchema,
   tdcc: tdccConfigSchema,
   esun: esunConfigSchema,
