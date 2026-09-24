@@ -1,4 +1,9 @@
-export const exchangeConnectorIds = ["binance", "bybit", "okx"] as const;
+export const exchangeConnectorIds = [
+  "binance",
+  "bybit",
+  "okx",
+  "bitfinex",
+] as const;
 const common = {
   connectionMode: "api_credentials",
   scopes: ["all"],
@@ -9,6 +14,12 @@ const common = {
   resetOnCredentialChangeFields: [],
 } as const;
 export const exchangeConnectorCatalog = {
+  bitfinex: {
+    ...common,
+    id: "bitfinex",
+    title: "Bitfinex",
+    description: "唯讀現貨／資金錢包台幣估值；不含保證金、衍生品與未結算利息",
+  },
   binance: {
     ...common,
     id: "binance",

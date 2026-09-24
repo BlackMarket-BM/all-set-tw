@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import { syncExchange } from "@taiwan-fin-hub/connectors";
 import {
   hmac,
+  jsonRequest,
   privateClient,
   type ExchangeId,
 } from "../../../../../packages/connectors/src/exchanges/http";
@@ -84,6 +85,121 @@ function fetchMock(values: Record<string, unknown>) {
   });
 }
 describe("唯讀交易所資產", () => {
+  it.each([301, 302, 307, 308])(
+    "rejects redirect %s without forwarding credentials",
+    async (status) => {
+      const fetcher = vi.fn<typeof fetch>(
+        async () =>
+          new Response("secret-private", {
+            status,
+            headers: { location: "https://untrusted.invalid" },
+          }),
+      );
+      await expect(
+        jsonRequest(fetcher, "https://api.binance.com/private", {
+          headers: { "X-MBX-APIKEY": config.apiKey },
+        }),
+      ).rejects.toThrow(`HTTP ${status}`);
+      expect(fetcher).toHaveBeenCalledTimes(1);
+      expect(fetcher.mock.calls[0][1]?.redirect).toBe("manual");
+    },
+  );
+  it("values Bitfinex wallet totals, signs POST bodies with SHA384 and advances nonces", async () => {
+    const fetcher = fetchMock({
+      ...fixtures(),
+      "/v2/auth/r/permissions": [
+        ["wallets", 1, 0],
+        ["orders", 0, 0],
+      ],
+      "/v2/auth/r/wallets": [
+        ["exchange", "BTC", 1.25, 0, 0.25],
+        ["funding", "UST", 10, 2, 3],
+        ["funding", "USD", 20, 1, null],
+        ["margin", "BTC", 1000, 0, 1000],
+      ],
+      "/v2/tickers": [
+        ["tBTCUSD", 99, 1, 101, 1, 0, 0, 100, 1, 101, 99],
+        ["fUSD", 0],
+      ],
+    });
+    const result = await syncExchange("bitfinex", config, {
+      fetcher,
+      now: () => timestamp,
+    });
+    expect(result.bankBalanceSnapshots?.[0].balance).toBeCloseTo(
+      (125 + 9.8 + 20) * 32,
+    );
+    expect(result.bankBalanceSnapshots?.[0].raw).toMatchObject({
+      holdings: [
+        expect.objectContaining({ asset: "BTC" }),
+        expect.objectContaining({ asset: "USDT" }),
+        expect.objectContaining({ asset: "USD" }),
+      ],
+    });
+    expect(JSON.stringify(result)).not.toMatch(
+      /key-private|secret-private|pass-private/,
+    );
+    const nonces: number[] = [];
+    for (const [url, init] of fetcher.mock.calls) {
+      const headers = new Headers(init?.headers);
+      if (!headers.has("bfx-apikey")) continue;
+      expect(init?.method).toBe("POST");
+      expect(init?.body).toBe("{}");
+      expect(headers.get("bfx-signature")).toBe(
+        createHmac("sha384", config.apiSecret)
+          .update(
+            `/api${new URL(String(url)).pathname}${headers.get("bfx-nonce")}${init?.body}`,
+          )
+          .digest("hex"),
+      );
+      nonces.push(Number(headers.get("bfx-nonce")));
+    }
+    expect(nonces).toEqual([timestamp * 1000, timestamp * 1000 + 1]);
+  });
+  it.each([
+    [["wallets", 1, 1]],
+    [
+      ["wallets", 1, 0],
+      ["unknown_future_scope", 1, 1],
+    ],
+    [["wallets", 0, 0]],
+    [],
+  ])(
+    "rejects unsafe or incomplete Bitfinex permissions %j",
+    async (...permissions) => {
+      const fetcher = fetchMock({ "/v2/auth/r/permissions": permissions });
+      await expect(
+        syncExchange("bitfinex", config, { fetcher }),
+      ).rejects.toThrow();
+      expect(fetcher).toHaveBeenCalledTimes(1);
+    },
+  );
+  it.each(["missing", "malformed", "error", "zero", "colon"])(
+    "handles Bitfinex %s without partial valuation",
+    async (scenario) => {
+      const data = {
+        ...fixtures(),
+        "/v2/auth/r/permissions": [["wallets", 1, 0]],
+        "/v2/auth/r/wallets": [["exchange", "LONGTOKEN", 2, 0, null]],
+        "/v2/tickers": [["tLONGTOKEN:UST", 0, 0, 0, 0, 0, 0, 5]],
+      } as Record<string, unknown>;
+      if (scenario === "missing") data["/v2/tickers"] = [];
+      if (scenario === "malformed")
+        data["/v2/auth/r/wallets"] = [["exchange", "BTC", "bad"]];
+      if (scenario === "error")
+        data["/v2/auth/r/wallets"] = ["error", 10114, "secret-private"];
+      if (scenario === "zero") data["/v2/auth/r/wallets"] = [];
+      const promise = syncExchange("bitfinex", config, {
+        fetcher: fetchMock(data),
+        now: () => timestamp,
+      });
+      if (scenario === "zero" || scenario === "colon")
+        expect((await promise).bankBalanceSnapshots?.[0].balance).toBeCloseTo(
+          scenario === "zero" ? 0 : 2 * 5 * 0.98 * 32,
+        );
+      else await expect(promise).rejects.toThrow();
+    },
+  );
   it("signs HMAC SHA256 against an independent implementation", async () => {
     for (const encoding of ["hex", "base64"] as const)
       expect(await hmac("secret", "timestampGET/path?a=1", encoding)).toBe(
@@ -109,7 +225,7 @@ describe("唯讀交易所資產", () => {
       for (const [input, init] of fetcher.mock.calls) {
         const url = new URL(String(input));
         const headers = new Headers(init?.headers);
-        expect(init?.redirect).toBe("error");
+        expect(init?.redirect).toBe("manual");
         if (headers.has("X-MBX-APIKEY")) {
           const signature = url.searchParams.get("signature");
           url.searchParams.delete("signature");

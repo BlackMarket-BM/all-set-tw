@@ -110,7 +110,7 @@ import { syncRoutes } from "../../../src/features/sync/route";
 
 const env = {} as Env;
 
-it.each(["binance", "bybit", "okx"] as const)(
+it.each(["binance", "bybit", "okx", "bitfinex"] as const)(
   "%s 的手動同步路由呼叫交易所服務並回傳結果",
   async (connectorId) => {
     const outcome = {

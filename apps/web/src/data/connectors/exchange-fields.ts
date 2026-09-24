@@ -7,6 +7,7 @@ const credentials = [
   { key: "apiSecret", label: "API Secret", type: "password" },
 ] as const;
 export const exchangeFields = {
+  bitfinex: [...credentials],
   binance: [...credentials],
   bybit: [...credentials],
   okx: [

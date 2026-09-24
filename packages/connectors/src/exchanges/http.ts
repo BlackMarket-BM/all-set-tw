@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-export const exchangeIds = ["binance", "bybit", "okx"] as const;
+export const exchangeIds = ["binance", "bybit", "okx", "bitfinex"] as const;
 export type ExchangeId = (typeof exchangeIds)[number];
 export const exchangeConfigSchema = z.object({
   apiKey: z.string().trim().min(1).max(512),
@@ -24,12 +24,13 @@ export async function hmac(
   secret: string,
   message: string,
   encoding: "hex" | "base64" = "hex",
+  hash: "SHA-256" | "SHA-384" = "SHA-256",
 ) {
   const encoder = new TextEncoder();
   const key = await crypto.subtle.importKey(
     "raw",
     encoder.encode(secret),
-    { name: "HMAC", hash: "SHA-256" },
+    { name: "HMAC", hash },
     false,
     ["sign"],
   );
@@ -46,8 +47,10 @@ const origins = {
   binance: "https://api.binance.com",
   bybit: "https://api.bybit.com",
   okx: "https://www.okx.com",
+  bitfinex: "https://api.bitfinex.com",
 };
 const paths: Record<ExchangeId, readonly string[]> = {
+  bitfinex: ["/v2/auth/r/permissions", "/v2/auth/r/wallets"],
   binance: [
     "/sapi/v1/account/apiRestrictions",
     "/api/v3/account",
@@ -73,7 +76,8 @@ export async function jsonRequest(
   try {
     const response = await fetcher(url, {
       ...init,
-      redirect: "error",
+      // Workers only supports follow/manual; reject 3xx below without forwarding credentials.
+      redirect: "manual",
       signal: AbortSignal.timeout(15000),
     });
     if (!response.ok)
@@ -121,6 +125,7 @@ export function privateClient(
   fetcher: typeof fetch,
   now: () => number,
 ) {
+  let lastNonce = 0;
   return async (path: string, params: Record<string, string> = {}) => {
     if (!paths[id].includes(path))
       throw new ExchangeError("不允許的交易所操作。");
@@ -128,7 +133,25 @@ export function privateClient(
     let method = "GET";
     let headers: Record<string, string> = {};
     let url: string;
-    if (id === "binance") {
+    let body: string | undefined;
+    if (id === "bitfinex") {
+      lastNonce = Math.max(now() * 1000, lastNonce + 1);
+      const nonce = String(lastNonce);
+      body = JSON.stringify(params);
+      method = "POST";
+      headers = {
+        "content-type": "application/json",
+        "bfx-apikey": config.apiKey,
+        "bfx-nonce": nonce,
+        "bfx-signature": await hmac(
+          config.apiSecret,
+          `/api${path}${nonce}${body}`,
+          "hex",
+          "SHA-384",
+        ),
+      };
+      url = origins[id] + path;
+    } else if (id === "binance") {
       query.set("timestamp", String(now()));
       query.set("recvWindow", "5000");
       query.set("signature", await hmac(config.apiSecret, query.toString()));
@@ -163,7 +186,7 @@ export function privateClient(
       };
       url = origins[id] + requestPath;
     }
-    return jsonRequest(fetcher, url, { method, headers });
+    return jsonRequest(fetcher, url, { method, headers, body });
   };
 }
 

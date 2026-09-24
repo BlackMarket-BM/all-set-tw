@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { bitfinex, bitfinexPrices } from "./bitfinex";
 import type { SyncResult } from "@taiwan-fin-hub/core";
 import {
   decimal,
@@ -15,6 +16,10 @@ export { exchangeConfigSchema, okxConfigSchema, ExchangeError } from "./http";
 export type { ExchangeId } from "./http";
 export const binanceConfigSchema = exchangeConfigSchema;
 export const bybitConfigSchema = exchangeConfigSchema;
+export const bitfinexConfigSchema = exchangeConfigSchema;
+export const parseBitfinexConfig = (value: unknown) =>
+  bitfinexConfigSchema.parse(value);
+export type BitfinexConfig = z.infer<typeof bitfinexConfigSchema>;
 export const parseBinanceConfig = (value: unknown) =>
   binanceConfigSchema.parse(value);
 export const parseBybitConfig = (value: unknown) =>
@@ -194,6 +199,7 @@ async function okx(
 }
 
 async function prices(id: ExchangeId, fetcher: typeof fetch) {
+  if (id === "bitfinex") return bitfinexPrices(fetcher);
   if (id === "binance") {
     const rows = parsePayload(
       z.array(z.object({ symbol, price: decimal })),
@@ -240,7 +246,7 @@ export async function syncExchange(
       "請先完整設定 API Key、Secret 與必要的 Passphrase。",
     );
   const request = privateClient(id, parsed.data, fetcher, now);
-  const data = await { binance, bybit, okx }[id](request);
+  const data = await { binance, bybit, okx, bitfinex }[id](request);
   const holdings = data.holdings.filter((row) => row.quantity !== 0);
   const ticks = holdings.length
     ? await prices(id, fetcher)
@@ -284,6 +290,8 @@ export async function syncExchange(
     if (row.asset === "TWD") rate = 1;
     else if (row.asset === "USD") rate = usdTwd;
     else if (row.asset === "USDT") rate = usdt * usdTwd;
+    else if (id === "bitfinex" && (ticks.get(row.asset + "USD") ?? 0) > 0)
+      rate = ticks.get(row.asset + "USD")! * usdTwd;
     else {
       const direct = ticks.get(row.asset + "USDT");
       const inverse = ticks.get("USDT" + row.asset);
@@ -304,7 +312,12 @@ export async function syncExchange(
     throw new ExchangeError("交易所資產估值超出範圍。");
   const asOfAt = new Date(now()).toISOString();
   const accountId = "crypto:portfolio";
-  const title = { binance: "Binance", bybit: "Bybit", okx: "OKX" }[id];
+  const title = {
+    binance: "Binance",
+    bybit: "Bybit",
+    okx: "OKX",
+    bitfinex: "Bitfinex",
+  }[id];
   return {
     records: [],
     cursor: asOfAt,
@@ -331,9 +344,11 @@ export async function syncExchange(
           usdtUsd: usdt,
           fxUpdatedAt: new Date(fx.time_last_update_unix * 1000).toISOString(),
           coverage:
-            id === "bybit"
-              ? "統一帳戶淨值與資金帳戶；不含 Earn"
-              : "現貨與資金帳戶；不含合約、槓桿與 Earn",
+            id === "bitfinex"
+              ? "現貨與資金錢包 BALANCE；不含保證金、衍生品與未結算利息"
+              : id === "bybit"
+                ? "統一帳戶淨值與資金帳戶；不含 Earn"
+                : "現貨與資金帳戶；不含合約、槓桿與 Earn",
         },
       },
     ],

@@ -4,13 +4,16 @@
 
 ## 範圍與估值
 
-| 來源    | 納入範圍                                                    | 不納入／不支援                                   |
-| ------- | ----------------------------------------------------------- | ------------------------------------------------ |
-| Binance | 現貨可用與鎖定餘額、資金帳戶可用／鎖定／凍結／提領中餘額    | 合約、槓桿、Earn、子帳戶                         |
-| Bybit   | UNIFIED `totalEquity`（USD 淨值，含損益及負債）與 FUND 餘額 | Classic／獨立保證金無總淨值的模式、Earn、子帳戶  |
-| OKX     | 交易帳戶 `cashBal` 與資金帳戶 `bal`                         | 合約損益、Earn、子帳戶；偵測到借貸時整次同步失敗 |
+| 來源     | 納入範圍                                                    | 不納入／不支援                                   |
+| -------- | ----------------------------------------------------------- | ------------------------------------------------ |
+| Binance  | 現貨可用與鎖定餘額、資金帳戶可用／鎖定／凍結／提領中餘額    | 合約、槓桿、Earn、子帳戶                         |
+| Bybit    | UNIFIED `totalEquity`（USD 淨值，含損益及負債）與 FUND 餘額 | Classic／獨立保證金無總淨值的模式、Earn、子帳戶  |
+| Bitfinex | exchange 與 funding 錢包 `BALANCE`（含保留資金）            | margin、衍生品、未結算利息、子帳戶               |
+| OKX      | 交易帳戶 `cashBal` 與資金帳戶 `bal`                         | 合約損益、Earn、子帳戶；偵測到借貸時整次同步失敗 |
 
 每家交易所用一個 `stored_value` 帳戶保存 TWD 總估值，名稱明確標示「虛擬貨幣（台幣估值）」。資產頁目前在既有帳戶區塊顯示並納入總資產／淨資產與歷史，不另增資產分類。幣別數量、估值來源與匯率時間保存在白名單快照明細；介面目前顯示交易所合計。
+
+Bitfinex 優先使用官方 USD 現貨交易對，否則使用 UST（USDT）交易對；UST 錢包代碼正規化為 USDT。錢包總餘額不再加上 AVAILABLE_BALANCE 或放貸本金，避免重複計算；未結算利息不納入。建議為本站建立獨立 API Key，避免與其他程式共用 nonce。
 
 一般幣種以該交易所現貨 USDT 交易對估值；支援反向交易對。USDT/USD 使用 Coinbase 現貨價格，再使用原專案同一匯率供應商 `open.er-api.com` 的 USD/TWD 換算，USDT 不假定等於 USD。Bybit 統一帳戶直接使用官方 USD 淨值，不能再加總其 coin 餘額。台幣匯率超過 72 小時、缺價、來源格式不完整、API 限流／權限／地區限制均讓同步失敗，保留上次成功快照及時間，不寫零或部分總額。
 
@@ -18,9 +21,9 @@
 
 ## 設定與安全
 
-1. 在交易所建立 **HMAC 唯讀 API Key**，停用交易、轉帳、提領。OKX 另需 Passphrase。RSA／Ed25519 Key 不支援。
+1. 在交易所建立 **HMAC 唯讀 API Key**，停用交易、轉帳、提領。Bitfinex 需啟用 Wallets Read，關閉所有 Write。OKX 另需 Passphrase。RSA／Ed25519 Key 不支援。
 2. 登入受 Cloudflare Access 保護的站台，於「設定 → 資料來源」輸入憑證，再執行同步。
-3. 確認資產與官方帳戶範圍一致後，可啟用排程；三個新增排程預設停用。
+3. 確認資產與官方帳戶範圍一致後，可啟用排程；四個新增排程預設停用。
 
 同步會先查 API Key 權限。所有私有端點限定在程式白名單，不提供自訂 API URL，禁止重導向，15 秒逾時，回應最大 4 MB。Binance 資金查詢依官方規格使用 POST，但這個端點只讀取資產，不移動資金。API 回應錯誤與連線例外不回傳原始 payload、簽章 URL 或憑證。
 
@@ -43,3 +46,7 @@ API Key、Secret、Passphrase 沿用原專案 AES-GCM 加密，僅存於 D1 `con
 - [Bybit Key 權限](https://bybit-exchange.github.io/docs/v5/user/apikey-info)
 - [OKX API](https://www.okx.com/docs-v5/en/)
 - [Coinbase 價格 API](https://docs.cdp.coinbase.com/coinbase-business/track-apis/prices)
+
+- [Bitfinex Wallets](https://docs.bitfinex.com/reference/rest-auth-wallets)
+- [Bitfinex Key Permissions](https://docs.bitfinex.com/reference/key-permissions)
+- [Bitfinex Tickers](https://docs.bitfinex.com/reference/rest-public-tickers)

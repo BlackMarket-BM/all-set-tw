@@ -1,4 +1,5 @@
 import {
+  bitfinexConfigSchema,
   binanceConfigSchema,
   bybitConfigSchema,
   okxConfigSchema,
@@ -798,6 +799,7 @@ function dedupeInvoiceLineItems(
 }
 
 export const connectorConfigSchemas = {
+  bitfinex: bitfinexConfigSchema,
   binance: binanceConfigSchema,
   bybit: bybitConfigSchema,
   okx: okxConfigSchema,

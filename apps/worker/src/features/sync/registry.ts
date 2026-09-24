@@ -50,6 +50,7 @@ export const connectorRuntimeRegistry: Record<
   ConnectorId,
   ConnectorRuntimeDefinition
 > = {
+  bitfinex: { run: (env) => syncExchangeAssets(env, "bitfinex") },
   binance: { run: (env) => syncExchangeAssets(env, "binance") },
   bybit: { run: (env) => syncExchangeAssets(env, "bybit") },
   okx: { run: (env) => syncExchangeAssets(env, "okx") },

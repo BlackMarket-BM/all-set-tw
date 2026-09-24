@@ -17,6 +17,7 @@ export type PushNotificationPayload = {
 };
 
 const connectorLabels: Record<ConnectorId, string> = {
+  bitfinex: "Bitfinex",
   binance: "Binance",
   bybit: "Bybit",
   okx: "OKX",
