@@ -114,6 +114,17 @@ export const syncRoutes = honoFactory.createApp();
 registerSyncRoutes(syncRoutes);
 
 function registerSyncRoutes(api: Hono<AppBindings>) {
+  for (const connectorId of ["binance", "bybit", "okx"] as const) {
+    api.post(`/connectors/${connectorId}/sync`, async (c) =>
+      syncRouteResponse(
+        c,
+        withManualSyncLock(c.env, connectorId, SYNC_SCOPE_ALL, () =>
+          runConnectorSync(c.env, connectorId, "manual"),
+        ),
+      ),
+    );
+  }
+
   api.post("/connectors/einvoice/sync", async (c) => {
     try {
       const { cancelQueuedEinvoiceSyncRun, startEinvoiceSyncRun } =

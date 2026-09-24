@@ -29,6 +29,7 @@ import {
 import type { Env } from "../../../src/platform/env";
 
 const mocks = vi.hoisted(() => ({
+  syncExchangeAssets: vi.fn(),
   cancelQueuedEinvoiceSyncRun: vi.fn(),
   cancelQueuedTdccSyncRun: vi.fn(),
   enqueueEinvoiceSyncChunk: vi.fn(),
@@ -49,6 +50,10 @@ const mocks = vi.hoisted(() => ({
   syncKgibank: vi.fn(),
   syncTaishin: vi.fn(),
   syncSkbank: vi.fn(),
+}));
+
+vi.mock("../../../src/features/sync/exchange-service", () => ({
+  syncExchangeAssets: mocks.syncExchangeAssets,
 }));
 
 vi.mock("../../../src/features/sync/einvoice-sync-service", () => ({
@@ -104,6 +109,33 @@ vi.mock("../../../src/features/sync/service", () => ({
 import { syncRoutes } from "../../../src/features/sync/route";
 
 const env = {} as Env;
+
+it.each(["binance", "bybit", "okx"] as const)(
+  "%s 的手動同步路由呼叫交易所服務並回傳結果",
+  async (connectorId) => {
+    const outcome = {
+      success: true,
+      connectorId,
+      scope: "all",
+      records: 2,
+      newRecords: {
+        invoices: 0,
+        bankTransactions: 0,
+        investmentTransactions: 0,
+      },
+      cursorUpdated: true,
+    };
+    mocks.syncExchangeAssets.mockResolvedValueOnce(outcome);
+    const response = await syncRoutes.request(
+      `/connectors/${connectorId}/sync`,
+      { method: "POST" },
+      env,
+    );
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual(outcome);
+    expect(mocks.syncExchangeAssets).toHaveBeenCalledWith(env, connectorId);
+  },
+);
 
 beforeEach(() => {
   vi.clearAllMocks();

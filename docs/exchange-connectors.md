@@ -30,7 +30,7 @@ API Key、Secret、Passphrase 沿用原專案 AES-GCM 加密，僅存於 D1 `con
 
 ## 維護與更新
 
-實作集中在 `packages/connectors/src/exchanges/`、`packages/core/src/exchange-catalog.ts`、Worker `exchange-service.ts`／`exchange-repository.ts` 與前端 `exchange-fields.ts`。既有檔案只加入 catalog、schema、runtime、表單與通知名稱註冊。migration 只新增預設停用的 sync jobs，不改既有表結構。
+實作集中在 `packages/connectors/src/exchanges/`、`packages/core/src/exchange-catalog.ts`、Worker `exchange-service.ts`／`exchange-repository.ts` 與前端 `exchange-fields.ts`。既有檔案只加入 catalog、schema、runtime、手動同步路由、表單與通知名稱註冊。migration 只新增預設停用的 sync jobs，不改既有表結構。
 
 上游仍會每天自動三方合併。這不是零衝突保證：註冊點與 migration 編號仍可能和未來 upstream 變更衝突，更新器會安全停止，必須檢查 GitHub Actions 並手動處理。Workers Builds 應連到此 Fork 的 `main`，使用原專案 build/deploy 指令；只有同步 workflow 而未設定 Builds，不會自動部署。
 
