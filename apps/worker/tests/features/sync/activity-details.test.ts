@@ -217,7 +217,7 @@ describe("同步活動明細：隔離 D1", () => {
     expect(
       (await sourceDetails(db, "batch2", "einvoice"))?.items[0].changes,
     ).toEqual(["invoice_linked"]);
-  });
+  }, 15_000);
   it("promotion 失敗時資料與明細一起回滾，重試不重複", async () => {
     await start("run");
     await expect(

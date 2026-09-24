@@ -11,7 +11,7 @@
 - Tables：31
 - Explicit indexes：44
 - Other objects：0
-- Migrations：46
+- Migrations：47
 
 ## Tables
 
@@ -1679,6 +1679,7 @@ Migration 是 schema 演進的 source of truth；若要了解某欄位的變更�
 - [`0045_preference_foreign_keys.sql`](../packages/db/migrations/0045_preference_foreign_keys.sql)
 - [`0046_transaction_self_foreign_keys.sql`](../packages/db/migrations/0046_transaction_self_foreign_keys.sql)
 - [`0047_sync_activity_details.sql`](../packages/db/migrations/0047_sync_activity_details.sql)
+- [`0048_kgibank_sync_job.sql`](../packages/db/migrations/0048_kgibank_sync_job.sql)
 - [`9001_bm_exchange_sync_jobs.sql`](../packages/db/migrations/9001_bm_exchange_sync_jobs.sql)
 
 ## 程式碼導覽
