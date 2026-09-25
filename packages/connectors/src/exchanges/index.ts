@@ -203,7 +203,10 @@ async function prices(id: ExchangeId, fetcher: typeof fetch) {
   if (id === "binance") {
     const rows = parsePayload(
       z.array(z.object({ symbol, price: decimal })),
-      await jsonRequest(fetcher, "https://api.binance.com/api/v3/ticker/price"),
+      await jsonRequest(
+        fetcher,
+        "https://api-gcp.binance.com/api/v3/ticker/price",
+      ),
     );
     return new Map(rows.map((row) => [row.symbol, row.price]));
   }

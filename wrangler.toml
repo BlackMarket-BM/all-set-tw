@@ -37,3 +37,7 @@ head_sampling_rate = 1
 [observability.logs]
 enabled = true
 invocation_logs = true
+
+# Keep this Taiwan deployment near its regional data sources.
+[placement]
+region = "gcp:asia-east1"

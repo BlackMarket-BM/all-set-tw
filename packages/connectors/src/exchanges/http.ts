@@ -44,7 +44,7 @@ export async function hmac(
 
 // Every private endpoint is explicitly allowlisted. No orders, transfers or withdrawals.
 const origins = {
-  binance: "https://api.binance.com",
+  binance: "https://api-gcp.binance.com",
   bybit: "https://api.bybit.com",
   okx: "https://www.okx.com",
   bitfinex: "https://api.bitfinex.com",
@@ -73,6 +73,8 @@ export async function jsonRequest(
   url: string,
   init: RequestInit = {},
 ): Promise<unknown> {
+  // Only static labels may reach error messages: never URLs, queries or upstream bodies.
+  const source = requestLabel(url);
   try {
     const response = await fetcher(url, {
       ...init,
@@ -82,7 +84,7 @@ export async function jsonRequest(
     });
     if (!response.ok)
       throw new ExchangeError(
-        `交易所／價格服務 HTTP ${response.status}；未更新資產。`,
+        `${source} HTTP ${response.status}${response.status === 451 ? "（來源限制此連線，可能涉及出口地區或服務政策）" : ""}；未更新資產。`,
       );
     // Read a bounded response and never expose upstream payloads or signed URLs in errors.
     const reader = response.body?.getReader();
@@ -103,10 +105,41 @@ export async function jsonRequest(
     return JSON.parse(text + decoder.decode());
   } catch (error) {
     if (error instanceof ExchangeError) throw error;
-    throw new ExchangeError(
-      "交易所／價格服務無法連線或資料格式錯誤；未更新資產。",
-    );
+    throw new ExchangeError(`${source}無法連線或資料格式錯誤；未更新資產。`);
   }
+}
+
+function requestLabel(url: string): string {
+  try {
+    const { origin, pathname } = new URL(url);
+    const exchange = Object.entries(origins).find(
+      ([, value]) => value === origin,
+    )?.[0] as ExchangeId | undefined;
+    if (exchange) {
+      const name = {
+        binance: "Binance",
+        bybit: "Bybit",
+        okx: "OKX",
+        bitfinex: "Bitfinex",
+      }[exchange];
+      const index = paths[exchange].indexOf(pathname);
+      const step =
+        index === 0
+          ? "API Key 權限檢查"
+          : index > 0
+            ? "帳戶資產查詢"
+            : "現貨價格查詢";
+      return `${name} ${step}`;
+    }
+    if (origin === "https://api-pub.bitfinex.com")
+      return "Bitfinex 現貨價格查詢";
+    if (origin === "https://api.coinbase.com")
+      return "Coinbase USDT/USD 價格查詢";
+    if (origin === "https://open.er-api.com") return "USD/TWD 匯率查詢";
+  } catch {
+    /* Invalid or unknown URLs receive a static fallback. */
+  }
+  return "交易所／價格服務";
 }
 
 export function parsePayload<T>(

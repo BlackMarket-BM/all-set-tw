@@ -50,3 +50,10 @@ API Key、Secret、Passphrase 沿用原專案 AES-GCM 加密，僅存於 D1 `con
 - [Bitfinex Wallets](https://docs.bitfinex.com/reference/rest-auth-wallets)
 - [Bitfinex Key Permissions](https://docs.bitfinex.com/reference/key-permissions)
 - [Bitfinex Tickers](https://docs.bitfinex.com/reference/rest-public-tickers)
+
+## 雲端連線限制
+
+此台灣部署以 `placement.region = "gcp:asia-east1"` 指定靠近台灣的 Cloudflare 執行節點，Binance 使用官方支援的 `api-gcp.binance.com`。美國節點實測回傳 451，台灣節點的預設 Binance 主機回傳 403，官方 GCP 主機則可連線。Placement 不是固定出口 IP 的保證；排程及不同來源仍需實際驗收。來源回覆 451／403 時會保留既有資產，不會自動改接非官方代理或寫入零值。錯誤訊息只顯示服務／步驟與狀態碼，不含請求 URL、簽章或上游原始內容。
+
+- [Binance 官方 API 主機](https://developers.binance.com/en/docs/products/spot/rest-api)
+- [Cloudflare Placement](https://developers.cloudflare.com/workers/configuration/placement/)

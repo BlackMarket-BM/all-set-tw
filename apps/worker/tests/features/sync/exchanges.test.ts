@@ -85,6 +85,33 @@ function fetchMock(values: Record<string, unknown>) {
   });
 }
 describe("唯讀交易所資產", () => {
+  it.each([
+    [
+      "https://api-gcp.binance.com/sapi/v1/account/apiRestrictions?signature=secret-private",
+      "Binance API Key 權限檢查",
+    ],
+    [
+      "https://api.coinbase.com/v2/prices/USDT-USD/spot",
+      "Coinbase USDT/USD 價格查詢",
+    ],
+    ["https://open.er-api.com/v6/latest/TWD", "USD/TWD 匯率查詢"],
+    ["https://secret-private.invalid/key-private", "交易所／價格服務"],
+  ])(
+    "identifies failure stage without exposing URL or response for %s",
+    async (url, label) => {
+      const fetcher = vi.fn<typeof fetch>(
+        async () => new Response("key-private secret-private", { status: 451 }),
+      );
+      const failure = await jsonRequest(fetcher, url).catch(
+        (error: Error) => error,
+      );
+      expect(failure).toBeInstanceOf(Error);
+      expect((failure as Error).message).toContain(`${label} HTTP 451`);
+      expect((failure as Error).message).not.toMatch(
+        /key-private|secret-private|https:/,
+      );
+    },
+  );
   it.each([301, 302, 307, 308])(
     "rejects redirect %s without forwarding credentials",
     async (status) => {
@@ -96,7 +123,7 @@ describe("唯讀交易所資產", () => {
           }),
       );
       await expect(
-        jsonRequest(fetcher, "https://api.binance.com/private", {
+        jsonRequest(fetcher, "https://api-gcp.binance.com/private", {
           headers: { "X-MBX-APIKEY": config.apiKey },
         }),
       ).rejects.toThrow(`HTTP ${status}`);
