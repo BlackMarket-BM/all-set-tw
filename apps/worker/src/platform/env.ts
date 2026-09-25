@@ -10,6 +10,7 @@ export interface Env {
   SYNC_QUEUE: Queue<ScheduledSyncQueueMessage>;
   ASSETS: Fetcher;
   BROWSER: Fetcher;
+  BINANCE_HTTP?: Fetcher;
   AI: Ai;
   CONFIG_ENCRYPTION_KEY?: string;
   VAPID_PUBLIC_KEY?: string;

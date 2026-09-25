@@ -2,6 +2,7 @@ import { syncExchange, type ExchangeId } from "@taiwan-fin-hub/connectors";
 import { getConnectorSettings } from "@taiwan-fin-hub/db";
 import { configEncryptionKey } from "../../platform/config";
 import { decryptJson } from "../../platform/crypto";
+import { exchangeFetch } from "../../connectors/exchange-fetch";
 import type { Env } from "../../platform/env";
 import { dateFromIso, rebuildBankDepositHistory } from "../net-worth/service";
 import { persistStagedSyncWrite } from "./persistence";
@@ -20,7 +21,9 @@ export async function syncExchangeAssets(
     settings.encrypted_config,
     configEncryptionKey(env),
   );
-  const result = await syncExchange(connectorId, config);
+  const result = await syncExchange(connectorId, config, {
+    fetcher: exchangeFetch(env),
+  });
   const now = result.cursor!;
   const records = [
     ...(result.bankAccounts ?? []).map((row) =>

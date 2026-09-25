@@ -150,6 +150,7 @@ Demo 模式下任何人都能讀取該 Worker 綁定的 D1 資料，因此必須
 若要從本機部署至既有 D1，可在 repository 根目錄複製 `wrangler.toml` 為被忽略的 `wrangler.private.toml`，填入正確的 `database_id`，再執行：
 
 ```bash
+XDG_CONFIG_HOME=.wrangler-config npx wrangler deploy --config wrangler.binance.jsonc
 XDG_CONFIG_HOME=.wrangler-config npx wrangler d1 migrations apply DB \
   --remote --config wrangler.private.toml
 XDG_CONFIG_HOME=.wrangler-config node scripts/deploy-with-vapid.mjs \

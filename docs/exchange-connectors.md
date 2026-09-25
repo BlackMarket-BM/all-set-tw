@@ -53,7 +53,9 @@ API Key、Secret、Passphrase 沿用原專案 AES-GCM 加密，僅存於 D1 `con
 
 ## 雲端連線限制
 
-此台灣部署以 `placement.region = "gcp:asia-east1"` 指定靠近台灣的 Cloudflare 執行節點，Binance 使用官方支援的 `api-gcp.binance.com`。美國節點實測回傳 451，台灣節點的預設 Binance 主機回傳 403，官方 GCP 主機則可連線。Placement 不是固定出口 IP 的保證；排程及不同來源仍需實際驗收。來源回覆 451／403 時會保留既有資產，不會自動改接非官方代理或寫入零值。錯誤訊息只顯示服務／步驟與狀態碼，不含請求 URL、簽章或上游原始內容。
+此台灣部署以 `placement.region = "gcp:asia-east1"` 指定靠近台灣的 Cloudflare 執行節點，Binance 使用官方支援的 `api-gcp.binance.com`。美國節點實測回傳 451，台灣節點的預設 Binance 主機回傳 403，官方 GCP 主機則可連線。Placement 只作用於 fetch handler，不作用於 Queue handler。因此手動與排程的 Binance 請求統一經由私有 `BINANCE_HTTP` service binding，呼叫區域 Worker 的預設 fetch handler。此服務沒有公開網址、沒有資料庫或持久金鑰，只允許四個唯讀端點，停用 invocation logs 以避免記錄簽章查詢字串。Placement 不是固定出口 IP 的保證；不同來源仍需實際驗收。來源回覆 451／403 時會保留既有資產，不會自動改接非官方代理或寫入零值。錯誤訊息只顯示服務／步驟與狀態碼，不含請求 URL、簽章或上游原始內容。
 
 - [Binance 官方 API 主機](https://developers.binance.com/en/docs/products/spot/rest-api)
 - [Cloudflare Placement](https://developers.cloudflare.com/workers/configuration/placement/)
+
+`npm run deploy` 先部署 `wrangler.binance.jsonc` 的私有區域服務，再部署主站。區域服務部署的子程序清除主站 Builds 專用的名稱／tag 覆寫，主站部署仍保留原本檢查。若改名，需同步修改區域設定及主站 `BINANCE_HTTP` binding。

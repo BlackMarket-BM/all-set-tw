@@ -1,0 +1,12 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "taiwan-fin-hub-binance",
+  "main": "apps/worker/src/connectors/binance-http.ts",
+  "compatibility_date": "2026-09-25",
+  "compatibility_flags": ["nodejs_compat"],
+  "workers_dev": false,
+  "preview_urls": false,
+  "placement": { "region": "gcp:asia-east1" },
+  // Signed query strings must not appear in invocation logs or traces.
+  "observability": { "enabled": false },
+}

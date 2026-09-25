@@ -13,6 +13,10 @@ ai = { binding = "AI" }
 [triggers]
 crons = ["*/10 * * * *"]
 
+[[services]]
+binding = "BINANCE_HTTP"
+service = "taiwan-fin-hub-binance"
+
 [[queues.producers]]
 binding = "SYNC_QUEUE"
 queue = "taiwan-fin-hub-sync"
