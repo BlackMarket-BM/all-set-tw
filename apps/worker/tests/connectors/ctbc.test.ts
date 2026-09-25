@@ -12,6 +12,68 @@ const RESOURCE_URL =
   "https://eb.ctbcbank.com/IMP/api/adapters/EBMW_Adapter/resource/ebmwResource";
 
 describe("CTBC mobile API connector", () => {
+  it.each([false, true, undefined])(
+    "only skips card requests when syncCreditCards is explicitly %s",
+    async (syncCreditCards) => {
+      const resources: string[] = [];
+      const fetcher: CtbcFetch = async (input, init) => {
+        const url = String(input);
+        if (url.includes("/token"))
+          return jsonResponse({ access_token: "test" });
+        if (url.endsWith("/main/init"))
+          return jsonResponse({ statusCode: "0000" });
+        const body = JSON.parse(String(init?.body));
+        const resource = body.resource as string | undefined;
+        if (!resource) return jsonResponse({ success: true, token: "test" });
+        resources.push(resource);
+        if (resource.startsWith("/twrbm-card/")) {
+          return jsonResponse({ sys: "SVC", code: "9902" });
+        }
+        if (resource === "/twrbm-deposit/qu001/010") {
+          return jsonResponse({
+            code: "0000",
+            rsData: {
+              twdAcctSummaryResponse: {
+                demDepBalSummaryResponse: {
+                  infoList: [
+                    {
+                      accountId: "123456789012",
+                      balance: "5000",
+                      accountNickName: "存款",
+                    },
+                  ],
+                },
+              },
+            },
+          });
+        }
+        return jsonResponse({
+          code: "0000",
+          rsData: { accountId: "123456789012", detailList: [] },
+        });
+      };
+      const result = createCtbcConnector(fetcher).sync({
+        userId: "test-id",
+        account: "test-user",
+        password: "test-password",
+        syncCreditCards,
+      });
+      if (syncCreditCards === false) {
+        const data = await result;
+        expect(data.bankBalanceSnapshots).toHaveLength(1);
+        expect(data.bankBalanceSnapshots?.[0]?.balance).toBe(5000);
+        expect(data.creditCardBills).toEqual([]);
+        expect(resources.some((r) => r.startsWith("/twrbm-card/"))).toBe(false);
+      } else {
+        await expect(result).rejects.toMatchObject({
+          name: "CtbcConnectionError",
+        });
+        expect(resources).toContain("/twrbm-card/qu002/010");
+      }
+      expect(resources.at(-1)).toBe("/twrbm-general/ot002/010");
+    },
+  );
+
   it("requires every credential without retaining submitted values in errors", () => {
     expect(() =>
       requireCtbcCredentials({

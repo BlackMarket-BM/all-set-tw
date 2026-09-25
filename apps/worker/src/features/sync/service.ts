@@ -844,10 +844,10 @@ export async function syncCtbc(
     );
   }
 
-  const authorizationWrite = await prepareCtbcAuthorizationWrite(
-    env.DB,
-    records,
-  );
+  const authorizationWrite =
+    config.syncCreditCards === false
+      ? { records, afterPromoteStatements: [] }
+      : await prepareCtbcAuthorizationWrite(env.DB, records);
   const newRecords = await persistStagedSyncWrite(env.DB, {
     records: authorizationWrite.records,
     afterPromoteStatements: [

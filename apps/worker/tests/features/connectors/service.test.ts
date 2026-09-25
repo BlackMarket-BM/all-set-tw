@@ -41,6 +41,25 @@ beforeEach(() => {
 });
 
 describe("connector settings state boundaries", () => {
+  it("saves CTBC deposit-only scope without replacing encrypted credentials", async () => {
+    const credentials = {
+      userId: "test-id",
+      account: "test-user",
+      password: "test-password",
+    };
+    mocks.findConnectorSettings.mockResolvedValue({
+      id: "ctbc",
+      connector_id: "ctbc",
+      encrypted_config: JSON.stringify(credentials),
+      public_config: null,
+    });
+    await updateConnectorSettings(env, "ctbc", { syncCreditCards: false });
+    const saved = mocks.saveConnectorSettings.mock.calls[0]?.[1];
+    expect(JSON.parse(saved.encryptedConfig)).toEqual(credentials);
+    expect(JSON.parse(saved.publicConfig)).toEqual({ syncCreditCards: false });
+    expect(mocks.clearConnectorCursor).not.toHaveBeenCalled();
+  });
+
   it("ignores the retired invoice detail preference", async () => {
     await updateConnectorSettings(env, "einvoice", {
       mobile: "0912345678",

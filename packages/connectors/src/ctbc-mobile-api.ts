@@ -155,28 +155,27 @@ export function createCtbcConnector(
           session,
           depositOverview,
         );
-        const creditCards = await session.resource(
-          CREDIT_CARD_BILLS_RESOURCE,
-          {},
-        );
-        // The summary call refreshes the same session data used by the official
-        // App (available credit and billed/unbilled totals). Its raw response is
-        // intentionally not persisted until those fields have a stable mapping.
-        await session.resource(CREDIT_CARD_SUMMARY_RESOURCE, {});
-        const unbilled = await fetchUnbilledTransactions(session);
-        const realtime = await fetchPagedCardItems(
-          session,
-          REALTIME_RESOURCE,
-          REALTIME_PAGE_RESOURCE,
-          {},
-        );
         const payloads: CtbcPayloads = {
           depositOverview,
           depositTransactions,
-          creditCards,
-          unbilled,
-          realtime,
+          creditCards: {},
         };
+        // Opt out explicitly for deposit-only customers. Unknown bank error
+        // codes must still fail full sync instead of hiding card liabilities.
+        if (config.syncCreditCards !== false) {
+          payloads.creditCards = await session.resource(
+            CREDIT_CARD_BILLS_RESOURCE,
+            {},
+          );
+          await session.resource(CREDIT_CARD_SUMMARY_RESOURCE, {});
+          payloads.unbilled = await fetchUnbilledTransactions(session);
+          payloads.realtime = await fetchPagedCardItems(
+            session,
+            REALTIME_RESOURCE,
+            REALTIME_PAGE_RESOURCE,
+            {},
+          );
+        }
         const parsed = parseCtbcData(payloads, new Date());
         return {
           records: [],

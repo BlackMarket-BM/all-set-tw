@@ -468,3 +468,55 @@ describe("ConnectorPanel", () => {
     }
   });
 });
+
+describe("CTBC synchronization scope", () => {
+  it.each([false, true])(
+    "loads saved card scope %s and saves changes without credentials",
+    async (syncCreditCards) => {
+      const queryClient = new QueryClient({
+        defaultOptions: { queries: { retry: false } },
+      });
+      const put = vi.fn().mockResolvedValue({ configured: true });
+      const api = {
+        get: vi.fn((path: string) =>
+          Promise.resolve(
+            path === "/api/sync-jobs"
+              ? []
+              : path === "/api/connectors/ctbc/settings"
+                ? { configured: true, publicConfig: { syncCreditCards } }
+                : {},
+          ),
+        ),
+        put,
+      } as unknown as ApiClient;
+      const screen = render(
+        ConnectorPanel,
+        {
+          props: {
+            api,
+            connectorId: "ctbc",
+            demoMode: false,
+            title: "中國信託銀行",
+            fields: connectorFields.ctbc as ConnectorField[],
+          },
+        },
+        { wrapper: QueryClientProvider, wrapperProps: { client: queryClient } },
+      );
+      const scope = screen.getByRole("combobox", { name: "同步範圍" });
+      await waitFor(() => {
+        expect(scope).not.toBeDisabled();
+        expect(scope).toHaveValue(String(syncCreditCards));
+      });
+      await fireEvent.change(scope, {
+        target: { value: String(!syncCreditCards) },
+      });
+      await fireEvent.click(screen.getByRole("button", { name: "儲存憑證" }));
+      await waitFor(() =>
+        expect(put).toHaveBeenCalledWith("/api/connectors/ctbc/settings", {
+          config: { syncCreditCards: !syncCreditCards },
+        }),
+      );
+      queryClient.clear();
+    },
+  );
+});

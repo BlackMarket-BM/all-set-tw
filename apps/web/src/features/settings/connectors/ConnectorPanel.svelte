@@ -584,7 +584,10 @@
   }
 
   function buildConfig() {
-    const entries: Array<[string, string | number]> = [];
+    const entries: Array<[string, string | number | boolean]> = [];
+    if (connectorId === "ctbc") {
+      entries.push(["syncCreditCards", values.syncCreditCards !== "false"]);
+    }
     for (const field of fields) {
       const raw = values[field.key];
       if (raw === undefined || raw === "") continue;
@@ -1051,6 +1054,25 @@
     </div>
     <form autocomplete="off" onsubmit={(event) => event.preventDefault()}>
       <div class="grid gap-3 p-4">
+        {#if connectorId === "ctbc"}
+          <label class="grid gap-1.5 text-sm font-medium">
+            同步範圍
+            <Select
+              value={values.syncCreditCards === "false" ? "false" : "true"}
+              disabled={$settings.isPending}
+              onchange={(e: Event) =>
+                (values.syncCreditCards = (
+                  e.currentTarget as HTMLSelectElement
+                ).value)}
+            >
+              <option value="true">存款帳戶與信用卡</option>
+              <option value="false">只同步存款帳戶（未持有中信信用卡）</option>
+            </Select>
+          </label>
+          <p class="text-sm text-muted-foreground">
+            變更範圍後請儲存。只同步存款不會更新或刪除既有信用卡資料。
+          </p>
+        {/if}
         {#each fields as field (field.key)}
           {@const storedCredential = Boolean(
             $settings.data?.configured &&

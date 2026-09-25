@@ -11,7 +11,11 @@ describe("connector definitions", () => {
 
   it("provides a form field for every credential and public preference", () => {
     for (const connectorId of supportedConnectorIds) {
-      const fieldKeys = connectorFields[connectorId].map(({ key }) => key);
+      // CTBC scope uses a dedicated select, covered by ConnectorPanel tests.
+      const fieldKeys = [
+        ...connectorFields[connectorId].map(({ key }) => key),
+        ...(connectorId === "ctbc" ? ["syncCreditCards"] : []),
+      ];
       const definition = connectorCatalog[connectorId];
 
       expect(fieldKeys).toEqual(
@@ -34,7 +38,9 @@ describe("connector definitions", () => {
 
   it("does not expose retired sync preferences", () => {
     for (const connectorId of supportedConnectorIds) {
-      expect(connectorCatalog[connectorId].publicFields).toEqual([]);
+      expect(connectorCatalog[connectorId].publicFields).toEqual(
+        connectorId === "ctbc" ? ["syncCreditCards"] : [],
+      );
     }
 
     expect(connectorFields.einvoice.map(({ key }) => key)).not.toContain(
