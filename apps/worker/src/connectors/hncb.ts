@@ -1,3 +1,4 @@
+import { safeLogError } from "../platform/safe-log";
 import { launchBrowserWithRetry } from "./browser.js";
 import puppeteer, {
   type Browser,
@@ -571,7 +572,7 @@ async function fetchDepositOverview(page: Page): Promise<string> {
       state: "result",
     });
   } catch (error) {
-    console.warn("[hncb] fetchDepositOverview failed:", error);
+    console.warn("[hncb] fetchDepositOverview failed:", safeLogError(error));
     return "";
   }
 }
@@ -585,7 +586,10 @@ async function fetchCreditCardBill(page: Page, range: string): Promise<string> {
       RANGE: range,
     });
   } catch (error) {
-    console.warn(`[hncb] fetchCreditCardBill range=${range} failed:`, error);
+    console.warn(
+      `[hncb] fetchCreditCardBill range=${range} failed:`,
+      safeLogError(error),
+    );
     return "";
   }
 }
@@ -830,12 +834,7 @@ function logHncbEvent(event: string, fields: Record<string, unknown>) {
 }
 
 function safeHncbLogMessage(error: unknown) {
-  const message = error instanceof Error ? error.message : String(error);
-  return message
-    .replace(/https?:\/\/[^\s"'<>]+/gi, "[URL]")
-    .replace(/\s+/g, " ")
-    .trim()
-    .slice(0, 240);
+  return safeLogError(error).message;
 }
 
 function isLoginPageUnavailable(error: unknown) {
@@ -959,10 +958,7 @@ async function closeHncbBrowser(browser: Browser) {
         connectorId: "hncb",
         stage: "close_browser",
         errorName: error instanceof Error ? error.name : typeof error,
-        message:
-          error instanceof Error
-            ? error.message
-            : "瀏覽器關閉失敗，但未取得錯誤原因。",
+        message: safeLogError(error).message,
       }),
     );
   }

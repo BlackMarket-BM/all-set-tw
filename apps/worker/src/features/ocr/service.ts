@@ -1,3 +1,4 @@
+import { safeLogError } from "../../platform/safe-log";
 export class ValidateNumberImageTooLargeError extends Error {}
 export class ValidateNumberEmptyImageError extends Error {}
 export class ValidateNumberOcrError extends Error {}
@@ -112,12 +113,15 @@ async function recognizeCaptcha(
       if (transient && attempt < TRANSIENT_AI_MAX_ATTEMPTS) {
         console.warn(
           `[ocr] Workers AI CAPTCHA recognition failed temporarily; retrying (${attempt}/${TRANSIENT_AI_MAX_ATTEMPTS})`,
-          error,
+          safeLogError(error),
         );
         await delay(TRANSIENT_AI_RETRY_DELAY_MS);
         continue;
       }
-      console.error("[ocr] Workers AI CAPTCHA recognition unavailable", error);
+      console.error(
+        "[ocr] Workers AI CAPTCHA recognition unavailable",
+        safeLogError(error),
+      );
       throw new ValidateNumberOcrUnavailableError(
         transient
           ? "驗證碼辨識服務暫時逾時，請稍後重試。"

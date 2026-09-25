@@ -1,3 +1,4 @@
+import { safeLogError } from "../../platform/safe-log";
 import {
   beginActivityRun,
   publishActivityRunStatement,
@@ -429,7 +430,7 @@ async function finalizeEinvoiceRun(
       }).catch((recoveryError) => {
         console.error(
           "[sync] failed to recover latest scheduled report from e-invoice sync",
-          recoveryError,
+          safeLogError(recoveryError),
         );
       });
     }
@@ -539,7 +540,7 @@ async function finalizeEinvoiceRun(
       // Report recovery is best effort and must not change a completed run.
       console.error(
         "[sync] failed to recover latest scheduled report from e-invoice sync",
-        recoveryError,
+        safeLogError(recoveryError),
       );
     });
   }

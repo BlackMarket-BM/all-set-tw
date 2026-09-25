@@ -1,3 +1,4 @@
+import { safeLogError } from "../../platform/safe-log";
 import { beginActivityRun } from "./activity-detail-repository";
 import { prepareCtbcAuthorizationWrite } from "./ctbc-authorizations";
 import { prepareEsunAuthorizationWrite } from "./esun-authorizations";
@@ -2264,7 +2265,7 @@ export async function withManualSyncLock(
         // into a failed sync response.
         console.error(
           "[sync] failed to recover latest scheduled report",
-          error,
+          safeLogError(error),
         );
       });
     }
@@ -2296,7 +2297,10 @@ export function startSyncLockHeartbeat(
           console.error(`[sync] lock heartbeat lost for ${lockRowId}`);
       })
       .catch((error) =>
-        console.error(`[sync] lock heartbeat failed for ${lockRowId}`, error),
+        console.error(
+          `[sync] lock heartbeat failed for ${lockRowId}`,
+          safeLogError(error),
+        ),
       );
   }, SYNC_LOCK_HEARTBEAT_MS);
   return () => clearInterval(timer);
@@ -2412,6 +2416,14 @@ function sanitizeErrorDiagnostic(value: string, maxLength: number) {
 // reaches sync records, API responses, or logs.
 function redactSensitiveText(value: string) {
   return value
+    .replace(
+      /(["']?(?:api[_-]?key|access[_-]?token|refresh[_-]?token|device[_-]?token|session[_-]?id|otp|sms[_-]?code|password|passwd|secret)["']?\s*[:=]\s*)(?:"[^"\r\n]*"|'[^'\r\n]*'|[^\s,;]+)/gi,
+      "$1[redacted]",
+    )
+    .replace(
+      /\b(?:cookie|set-cookie|authorization)\s*[:=][^\r\n]*/gi,
+      "[redacted header]",
+    )
     .replace(/https?:\/\/\S+/gi, "[URL]")
     .replace(
       /\b(authorization|cookie|password|passwd|token|secret|session(?:cookies?)?)\s*[:=]\s*([^\s,;]+)/gi,

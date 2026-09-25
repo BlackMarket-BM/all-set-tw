@@ -261,7 +261,15 @@ describe("activity invoice transaction mappings", () => {
         message: "An unexpected error occurred.",
       },
     });
-    expect(errorLog).toHaveBeenCalledWith("[api] unhandled error:", unexpected);
+    expect(errorLog).toHaveBeenCalledWith(
+      "[api] unhandled error:",
+      expect.objectContaining({
+        message: "Operation failed; upstream error details omitted.",
+      }),
+    );
+    expect(String(errorLog.mock.calls.flat())).not.toContain(
+      unexpected.message,
+    );
     errorLog.mockRestore();
   });
 });

@@ -1,3 +1,4 @@
+import { safeLogError } from "../platform/safe-log";
 import { launchBrowserWithRetry } from "./browser.js";
 import puppeteer, {
   type Browser,
@@ -416,7 +417,7 @@ async function fetchCreditCardPayloads(
     ).catch((error) => {
       console.warn(
         `[taishin] current payment overview skipped: ${
-          error instanceof Error ? error.message : String(error)
+          safeLogError(error).message
         }`,
       );
       return undefined;
@@ -439,7 +440,9 @@ async function fetchCreditCardPayloads(
   } catch (error) {
     if (error instanceof TaishinVerificationRequiredError) throw error;
     if (!(error instanceof TaishinConnectionError)) throw error;
-    console.warn(`[taishin] optional bill sync skipped: ${error.message}`);
+    console.warn(
+      `[taishin] optional bill sync skipped: ${safeLogError(error).message}`,
+    );
     return { summary, bills: [], realtime };
   }
 }
@@ -457,7 +460,7 @@ async function fetchRealtimeTransactions(page: BrowserPage) {
       if (attempt < REALTIME_RETRY_ATTEMPTS) {
         console.warn(
           `[taishin] realtime retry ${attempt}/${REALTIME_RETRY_ATTEMPTS}: ${
-            error instanceof Error ? error.message : String(error)
+            safeLogError(error).message
           }`,
         );
         await new Promise((resolve) => setTimeout(resolve, attempt * 250));
@@ -1361,7 +1364,7 @@ async function closeTaishinBrowser(browser: Browser) {
   try {
     await browser.close();
   } catch (error) {
-    const message = safeTaishinRuntimeMessage(error);
+    const message = safeLogError(error).message;
     console.warn(
       JSON.stringify({
         event: "taishin_browser_cleanup_failed",

@@ -220,7 +220,7 @@ describe("Taishin browser session lifecycle", () => {
       connectorId: "taishin",
       stage: "close_browser",
       errorName: "Error",
-      message: "瀏覽器關閉失敗，但未取得錯誤原因。",
+      message: "Operation failed; upstream error details omitted.",
     });
     warn.mockRestore();
   });
@@ -547,10 +547,10 @@ describe("Taishin browser session lifecycle", () => {
     });
 
     expect(warn).toHaveBeenCalledWith(
-      "[taishin] realtime retry 1/3: 台新信用卡 API qryRealTime 網路請求失敗（TypeError: Failed to fetch [URL]）。",
+      "[taishin] realtime retry 1/3: Operation failed; upstream error details omitted.",
     );
     expect(warn).toHaveBeenCalledWith(
-      "[taishin] realtime retry 2/3: 台新信用卡 API qryRealTime 回應 HTTP 502。",
+      "[taishin] realtime retry 2/3: Operation failed; upstream error details omitted.",
     );
     const realtimeCalls = browserPage.evaluate.mock.calls.filter(
       ([, input]) =>

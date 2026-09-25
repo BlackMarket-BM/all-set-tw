@@ -90,6 +90,9 @@ describe("HTTP helpers", () => {
     expect(JSON.stringify(await response.json())).not.toContain(
       "secret database detail",
     );
+    expect(String(spy.mock.calls.flat())).not.toContain(
+      "secret database detail",
+    );
     spy.mockRestore();
   });
 });

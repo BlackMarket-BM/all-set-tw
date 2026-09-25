@@ -1,3 +1,4 @@
+import { safeLogError } from "../../platform/safe-log";
 import {
   listBankAccounts,
   listBankTransactions,
@@ -83,7 +84,10 @@ async function presentBankTransactions(
       })),
     );
   } catch (error) {
-    console.error("[classify] resolveClassifications failed:", error);
+    console.error(
+      "[classify] resolveClassifications failed:",
+      safeLogError(error),
+    );
     classificationMap = new Map();
     classificationsReady = false;
   }
@@ -171,7 +175,10 @@ async function loadTransferCandidates(
       ],
     );
   } catch (error) {
-    console.error("[transfer] load transfer candidates failed:", error);
+    console.error(
+      "[transfer] load transfer candidates failed:",
+      safeLogError(error),
+    );
     return transactions;
   }
 

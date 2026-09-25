@@ -1,9 +1,9 @@
+import { safeLogError } from "../../platform/safe-log";
 import type {
   NotificationConfig,
   NotificationPreferences,
   PushSubscriptionInput,
 } from "@taiwan-fin-hub/core";
-import { sanitizeDatabaseError } from "@taiwan-fin-hub/db";
 import { configEncryptionKey } from "../../platform/config";
 import { decryptJson, encryptJson } from "../../platform/crypto";
 import type { Env } from "../../platform/env";
@@ -148,7 +148,7 @@ export async function safelySendSyncNotification(
     }
     await deliverPushPayload(env, syncNotificationPayload(event));
   } catch (error) {
-    const safeError = sanitizeDatabaseError(error);
+    const safeError = safeLogError(error);
     console.error(
       JSON.stringify({
         event: "push_notification_failed",
@@ -176,7 +176,7 @@ export async function safelySendScheduledSyncSummary(
     }
     await deliverPushPayload(env, scheduledSyncSummaryPayload(events));
   } catch (error) {
-    const safeError = sanitizeDatabaseError(error);
+    const safeError = safeLogError(error);
     console.error(
       JSON.stringify({
         event: "push_notification_failed",
@@ -245,31 +245,9 @@ function pushDeliveryFailureDetails(error: unknown, endpoint?: string) {
     return { statusCode: 0 };
   }
 
-  const responseBody = error.body?.trim();
-  let reason: string | undefined;
-  if (responseBody) {
-    try {
-      const parsed: unknown = JSON.parse(responseBody);
-      if (
-        parsed &&
-        typeof parsed === "object" &&
-        "reason" in parsed &&
-        typeof parsed.reason === "string"
-      ) {
-        reason = parsed.reason.slice(0, 128);
-      }
-    } catch {
-      // Keep the truncated response body below for non-JSON push service errors.
-    }
-  }
-
+  // Push providers may echo endpoint credentials in bodies or headers.
   return {
     statusCode: error.statusCode,
-    ...(reason ? { reason } : {}),
-    ...(responseBody ? { responseBody: responseBody.slice(0, 512) } : {}),
-    ...(error.headers["apns-id"]
-      ? { pushServiceRequestId: error.headers["apns-id"] }
-      : {}),
     ...(endpoint ? { endpointHost: safeEndpointHostname(endpoint) } : {}),
   };
 }

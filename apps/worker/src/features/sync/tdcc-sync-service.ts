@@ -1,3 +1,4 @@
+import { safeLogError } from "../../platform/safe-log";
 import {
   beginActivityRun,
   publishActivityRunStatement,
@@ -631,7 +632,10 @@ async function finishTdccJobAfterPromotion(
       batchId: await findActivityRunBatchId(env.DB, run.id),
       newRecords,
     }).catch((error) =>
-      console.error("[sync] failed to recover latest TDCC report", error),
+      console.error(
+        "[sync] failed to recover latest TDCC report",
+        safeLogError(error),
+      ),
     );
   }
   if (run.scheduled_batch_id) {

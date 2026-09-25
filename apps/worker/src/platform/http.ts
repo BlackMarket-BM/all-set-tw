@@ -1,5 +1,5 @@
+import { safeLogError } from "./safe-log";
 import type { MiddlewareHandler } from "hono";
-import { sanitizeDatabaseError } from "@taiwan-fin-hub/db";
 import { HTTPException } from "hono/http-exception";
 import { z } from "zod";
 import type { AppBindings, Env } from "./env";
@@ -33,7 +33,7 @@ export function apiErrorResponse(error: Error) {
     );
   }
 
-  console.error("[api] unhandled error:", sanitizeDatabaseError(error));
+  console.error("[api] unhandled error:", safeLogError(error));
   return jsonError("INTERNAL_ERROR", "An unexpected error occurred.", 500);
 }
 

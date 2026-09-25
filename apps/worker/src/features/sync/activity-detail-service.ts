@@ -1,4 +1,4 @@
-import { sanitizeDatabaseError } from "@taiwan-fin-hub/db";
+import { safeLogError } from "../../platform/safe-log";
 import {
   activityDisplayAmount,
   activityDateKey,
@@ -186,7 +186,7 @@ export async function safelyMaterializeActivityReport(
   } catch (error) {
     console.error(
       "[sync] activity report projection pending",
-      sanitizeDatabaseError(error),
+      safeLogError(error),
     );
   }
 }
