@@ -11,6 +11,41 @@ vi.mock("../../src/connectors/browser", () => ({
 afterEach(() => vi.resetAllMocks());
 
 describe("CTBC installment loan balances", () => {
+  it("diagnoses a missing public login form without submitting credentials or exposing page contents", async () => {
+    const page = {
+      setViewport: vi.fn(),
+      setRequestInterception: vi.fn(),
+      on: vi.fn(),
+      goto: vi.fn().mockResolvedValue({ status: () => 403 }),
+      waitForSelector: vi
+        .fn()
+        .mockRejectedValue(new Error("synthetic-sensitive-browser-error")),
+      evaluate: vi.fn().mockResolvedValue({
+        inputs: 0,
+        passwords: 0,
+        bankLoginLabels: false,
+        denied: true,
+      }),
+      type: vi.fn(),
+    };
+    const close = vi.fn().mockResolvedValue(undefined);
+    vi.mocked(launchBrowserWithRetry).mockResolvedValue({
+      newPage: async () => page,
+      close,
+    } as never);
+    await expect(
+      syncCtbcLoans({} as Fetcher, {
+        userId: "synthetic-id",
+        account: "synthetic-user",
+        password: "synthetic-password",
+      }),
+    ).rejects.toThrow(
+      /^中信網銀尚未取得登入表單（HTTP 403；欄位 0；密碼欄位 0；登入標籤 false；拒絕存取 true）；未提交帳密。$/,
+    );
+    expect(page.type).not.toHaveBeenCalled();
+    expect(page.goto).toHaveBeenCalledTimes(1);
+    expect(close).toHaveBeenCalledOnce();
+  });
   it("reports only a fixed failure phase and never exposes raw browser errors", async () => {
     const page = {
       setViewport: vi.fn(),

@@ -93,15 +93,34 @@ export async function syncCtbcLoans(
       else void request.continue().catch(() => {});
     });
     phase = "載入網銀頁面";
-    await page.goto(LOGIN_URL, {
+    const loginResponse = await page.goto(LOGIN_URL, {
       waitUntil: "domcontentloaded",
       timeout: 30_000,
     });
     phase = "尋找登入欄位";
-    await page.waitForSelector('input[formcontrolname="custIxd"]', {
-      visible: true,
-      timeout: 30_000,
-    });
+    try {
+      await page.waitForSelector('input[formcontrolname="custIxd"]', {
+        visible: true,
+        timeout: 30_000,
+      });
+    } catch {
+      const diagnostics = await page
+        .evaluate(() => ({
+          inputs: document.querySelectorAll("input").length,
+          passwords: document.querySelectorAll('input[type="password"]').length,
+          bankLoginLabels: (document.body?.innerText ?? "").includes(
+            "使用者代號",
+          ),
+          denied:
+            /Access Denied|Request Rejected|Forbidden|Sorry, you have been blocked|拒絕存取/i.test(
+              document.body?.innerText ?? "",
+            ),
+        }))
+        .catch(() => null);
+      throw new CtbcConnectionError(
+        `中信網銀尚未取得登入表單（HTTP ${loginResponse?.status() ?? 0}；欄位 ${diagnostics?.inputs ?? 0}；密碼欄位 ${diagnostics?.passwords ?? 0}；登入標籤 ${diagnostics?.bankLoginLabels === true}；拒絕存取 ${diagnostics?.denied === true}）；未提交帳密。`,
+      );
+    }
     if (new URL(page.url()).origin !== "https://www.ctbcbank.com") {
       throw new CtbcConnectionError("中信網銀登入頁來源不符，已停止同步。");
     }
