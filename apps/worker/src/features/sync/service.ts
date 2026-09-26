@@ -39,6 +39,7 @@ import {
   createCathaybkConnector,
 } from "../../connectors/cathaybk";
 import { createCtbcFetch } from "../../connectors/ctbc";
+import { syncCtbcLoans } from "../../connectors/ctbc-loans";
 import { createEsunConnector } from "../../connectors/esun";
 import {
   createFirstbankConnector,
@@ -796,7 +797,9 @@ export async function syncCtbc(
     const connector = fetcher
       ? createCtbcConnector(fetcher)
       : createCtbcConnector();
-    result = await connector.sync(config, settings.sync_cursor ?? undefined);
+    result = config.syncLoansOnly
+      ? await syncCtbcLoans(env.BROWSER, config)
+      : await connector.sync(config, settings.sync_cursor ?? undefined);
   } catch (error) {
     if (error instanceof CtbcVerificationRequiredError) {
       throw new NeedsUserActionError(error.message);
@@ -846,7 +849,7 @@ export async function syncCtbc(
   }
 
   const authorizationWrite =
-    config.syncCreditCards === false
+    config.syncLoansOnly || config.syncCreditCards === false
       ? { records, afterPromoteStatements: [] }
       : await prepareCtbcAuthorizationWrite(env.DB, records);
   const newRecords = await persistStagedSyncWrite(env.DB, {

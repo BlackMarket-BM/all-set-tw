@@ -470,9 +470,13 @@ describe("ConnectorPanel", () => {
 });
 
 describe("CTBC synchronization scope", () => {
-  it.each([false, true])(
-    "loads saved card scope %s and saves changes without credentials",
-    async (syncCreditCards) => {
+  it.each([
+    [false, false],
+    [true, false],
+    [false, true],
+  ])(
+    "loads saved card scope %s and loan mode %s and saves changes without credentials",
+    async (syncCreditCards, syncLoansOnly) => {
       const queryClient = new QueryClient({
         defaultOptions: { queries: { retry: false } },
       });
@@ -483,7 +487,10 @@ describe("CTBC synchronization scope", () => {
             path === "/api/sync-jobs"
               ? []
               : path === "/api/connectors/ctbc/settings"
-                ? { configured: true, publicConfig: { syncCreditCards } }
+                ? {
+                    configured: true,
+                    publicConfig: { syncCreditCards, syncLoansOnly },
+                  }
                 : {},
           ),
         ),
@@ -510,10 +517,18 @@ describe("CTBC synchronization scope", () => {
       await fireEvent.change(scope, {
         target: { value: String(!syncCreditCards) },
       });
+      const mode = screen.getByRole("combobox", { name: "中信同步模式" });
+      expect(mode).toHaveValue(String(syncLoansOnly));
+      await fireEvent.change(mode, {
+        target: { value: String(!syncLoansOnly) },
+      });
       await fireEvent.click(screen.getByRole("button", { name: "儲存憑證" }));
       await waitFor(() =>
         expect(put).toHaveBeenCalledWith("/api/connectors/ctbc/settings", {
-          config: { syncCreditCards: !syncCreditCards },
+          config: {
+            syncCreditCards: !syncCreditCards,
+            syncLoansOnly: !syncLoansOnly,
+          },
         }),
       );
       queryClient.clear();

@@ -128,6 +128,7 @@
           {summary.hasUnknownCardBalance
             ? "信用卡負債資料不完整"
             : `已扣除 ${formatCurrency(summary.cardDebt)} 信用卡負債`}
+          {#if summary.loanDebt > 0}；另扣除 {formatCurrency(summary.loanDebt)} 貸款本金{/if}
         </p>
       </div>
       <div class="mt-6 grid grid-cols-3 gap-3 md:gap-6">
@@ -225,8 +226,8 @@
                       {group.institution}
                     </strong>
                     <small class="mt-1 block truncate text-caption text-subtle">
-                      {group.accounts.length} 帳戶 · {group.cards.length} 卡片{group
-                        .foreignCurrencies.length
+                      {group.accounts.length} 帳戶 · {group.cards.length} 卡片 · {group
+                        .loans?.length ?? 0} 貸款{group.foreignCurrencies.length
                         ? ` · 含 ${group.foreignCurrencies.join("、")}`
                         : ""}
                     </small>
@@ -238,9 +239,9 @@
                         : "—"}
                     </strong>
                     <small
-                      class={`mt-1 block text-caption tabular-nums ${group.cards.length ? "text-coral" : "text-subtle"}`}
+                      class={`mt-1 block text-caption tabular-nums ${group.cards.length || group.loans?.length ? "text-coral" : "text-subtle"}`}
                     >
-                      {group.cards.length
+                      {group.cards.length || group.loans?.length
                         ? group.hasUnknownCardBalance
                           ? "負債資料不完整"
                           : `負債 ${formatCurrency(-group.debtTotalTwd)}`
@@ -348,8 +349,8 @@
                     {group.institution}
                   </strong>
                   <small class="mt-1 block truncate text-caption text-subtle">
-                    {group.accounts.length} 帳戶 · {group.cards.length} 卡片{group
-                      .foreignCurrencies.length
+                    {group.accounts.length} 帳戶 · {group.cards.length} 卡片 · {group
+                      .loans?.length ?? 0} 貸款{group.foreignCurrencies.length
                       ? ` · 含 ${group.foreignCurrencies.join("、")}`
                       : ""}
                   </small>
@@ -361,9 +362,9 @@
                       : "—"}
                   </strong>
                   <small
-                    class={`mt-1 block text-caption tabular-nums ${group.cards.length ? "text-coral" : "text-subtle"}`}
+                    class={`mt-1 block text-caption tabular-nums ${group.cards.length || group.loans?.length ? "text-coral" : "text-subtle"}`}
                   >
-                    {group.cards.length
+                    {group.cards.length || group.loans?.length
                       ? group.hasUnknownCardBalance
                         ? "負債資料不完整"
                         : `負債 ${formatCurrency(-group.debtTotalTwd)}`

@@ -28,6 +28,7 @@ import type {
 
 export type FinancialSnapshot = {
   assetsTwd: number;
+  // Legacy DB/API field name; includes both credit-card debt and loan principal.
   creditCardDebtTwd: number;
   missingCurrencies: string[];
 };
@@ -284,7 +285,7 @@ export async function calculateCurrentFinancialSnapshot(
            )
        ), financial_items AS (
          SELECT
-           CASE WHEN account_type = 'credit' THEN 'debt' ELSE 'asset' END AS kind,
+           CASE WHEN account_type IN ('credit', 'loan') THEN 'debt' ELSE 'asset' END AS kind,
            amount,
            currency
          FROM latest_bank_balances

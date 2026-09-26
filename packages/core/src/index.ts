@@ -509,7 +509,7 @@ export const connectorCatalog = {
       "bank_transaction",
       "credit_card_bill",
     ],
-    publicFields: ["syncCreditCards"],
+    publicFields: ["syncCreditCards", "syncLoansOnly"],
     credentialFields: ["userId", "account", "password"],
     secretStateFields: [],
     resetOnCredentialChangeFields: [],

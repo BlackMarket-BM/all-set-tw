@@ -99,6 +99,21 @@ afterEach(() => {
 });
 
 describe("scheduled sync financial reports", () => {
+  it("reports loan principal as debt instead of negative gross assets", async () => {
+    const { database, db } = createDb();
+    databases.push(database);
+    database.exec(`
+      INSERT INTO bank_accounts (id, connector_id, source_id, account_type, currency, raw_payload, created_at, updated_at)
+      VALUES ('loan', 'ctbc', 'loan', 'loan', 'TWD', '{}', '2026-09-26', '2026-09-26');
+      INSERT INTO bank_balance_snapshots (id, connector_id, account_id, source_id, balance, currency, as_of_at, raw_payload, created_at, updated_at)
+      VALUES ('loan-snapshot', 'ctbc', 'loan', 'loan-snapshot', -300000, 'TWD', '2026-09-26', '{}', '2026-09-26', '2026-09-26');
+    `);
+    await expect(calculateCurrentFinancialSnapshot(db)).resolves.toEqual({
+      assetsTwd: 0,
+      creditCardDebtTwd: 300000,
+      missingCurrencies: [],
+    });
+  });
   it("uses the same latest-value and TWD conversion rules as the overview", async () => {
     const { database, db } = createDb();
     databases.push(database);

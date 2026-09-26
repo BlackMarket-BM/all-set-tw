@@ -53,10 +53,16 @@ describe("connector settings state boundaries", () => {
       encrypted_config: JSON.stringify(credentials),
       public_config: null,
     });
-    await updateConnectorSettings(env, "ctbc", { syncCreditCards: false });
+    await updateConnectorSettings(env, "ctbc", {
+      syncCreditCards: false,
+      syncLoansOnly: true,
+    });
     const saved = mocks.saveConnectorSettings.mock.calls[0]?.[1];
     expect(JSON.parse(saved.encryptedConfig)).toEqual(credentials);
-    expect(JSON.parse(saved.publicConfig)).toEqual({ syncCreditCards: false });
+    expect(JSON.parse(saved.publicConfig)).toEqual({
+      syncCreditCards: false,
+      syncLoansOnly: true,
+    });
     expect(mocks.clearConnectorCursor).not.toHaveBeenCalled();
   });
 

@@ -69,7 +69,7 @@
             positiveChangeIsFavorable: true,
           },
           {
-            label: "信用卡負債",
+            label: "信用卡／貸款負債",
             value: report.financialChange.creditCardDebt,
             positiveChangeIsFavorable: false,
           },

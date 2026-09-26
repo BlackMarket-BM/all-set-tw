@@ -166,6 +166,46 @@ test.beforeEach(async ({ page }) => {
   });
 });
 
+test("deducts loan principal and displays it separately from cash and credit cards", async ({
+  page,
+}) => {
+  await page.route("**/api/bank", async (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        accounts: [
+          {
+            id: "ctbc-loan",
+            connectorId: "ctbc",
+            sourceId: "synthetic-loan",
+            institutionName: "中國信託商業銀行",
+            accountName: "中信信貸（末四碼 7890）",
+            accountType: "loan",
+            balance: -300000,
+            currency: "TWD",
+            asOfAt: "2026-09-26T00:00:00Z",
+          },
+        ],
+        transactions: [],
+      }),
+    }),
+  );
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto("/#/assets");
+  await expect(page.locator('section[aria-label="淨資產"]')).toContainText(
+    "2,493,800",
+  );
+  await expect(page.locator('section[aria-label="淨資產"]')).toContainText(
+    "貸款本金",
+  );
+  const loans = page
+    .locator('section[aria-label="貸款本金"]')
+    .filter({ visible: true });
+  await expect(loans).toContainText("中信信貸（末四碼 7890）");
+  await expect(loans).toContainText("−NT$300,000");
+});
+
 test("uses the desktop asset ledger without losing detail workflows", async ({
   page,
 }) => {

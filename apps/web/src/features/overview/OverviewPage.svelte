@@ -85,10 +85,23 @@
   const toTwd = (value: number, currency: string) =>
     currency === "TWD" ? value : value * (rateValues[currency] ?? 0);
   const deposits = $derived(
-    bankData.accounts.filter((account) => account.accountType !== "credit"),
+    bankData.accounts.filter(
+      (account) =>
+        account.accountType !== "credit" && account.accountType !== "loan",
+    ),
   );
   const cards = $derived(
     bankData.accounts.filter((account) => account.accountType === "credit"),
+  );
+  const loans = $derived(
+    bankData.accounts.filter((account) => account.accountType === "loan"),
+  );
+  const loanDebt = $derived(
+    loans.reduce(
+      (sum, account) =>
+        sum + Math.abs(toTwd(account.balance ?? 0, account.currency)),
+      0,
+    ),
   );
   const depositTotal = $derived(
     deposits.reduce(
@@ -118,7 +131,7 @@
     ),
   );
   const gross = $derived(depositTotal + investmentTotal + manualTotal);
-  const netWorth = $derived(gross - cardDebt);
+  const netWorth = $derived(gross - cardDebt - loanDebt);
   const allocation = $derived([
     {
       label: "銀行與現金",
@@ -264,7 +277,7 @@
     $rates.isSuccess
       ? missingExchangeRateCurrencies(
           [
-            ...deposits.map((account) => ({
+            ...[...deposits, ...loans].map((account) => ({
               currency: account.currency,
               amount: account.balance ?? 0,
             })),
@@ -344,6 +357,7 @@
       </p>
       <p class="mt-3 text-caption text-subtle">
         已扣除 {formatCurrency(cardDebt)} 信用卡負債
+        {#if loanDebt > 0}；另扣除 {formatCurrency(loanDebt)} 貸款本金{/if}
       </p>
       <div class="mt-6 grid grid-cols-3 gap-3 md:gap-6">
         {#each allocation as item (item.label)}

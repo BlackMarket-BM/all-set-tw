@@ -2,6 +2,48 @@ import { describe, expect, it } from "vitest";
 import { calculateAssetSummary } from "./summary";
 
 describe("calculateAssetSummary", () => {
+  it("deducts loan principal once without reducing gross deposits or duplicating cards", () => {
+    const summary = calculateAssetSummary({
+      bank: {
+        accounts: [
+          {
+            id: "deposit",
+            connectorId: "ctbc",
+            sourceId: "deposit",
+            accountType: "savings",
+            currency: "TWD",
+            balance: 100000,
+          },
+          {
+            id: "loan",
+            connectorId: "ctbc",
+            sourceId: "loan",
+            accountType: "loan",
+            currency: "TWD",
+            balance: -300000,
+          },
+          {
+            id: "card",
+            connectorId: "ctbc",
+            sourceId: "card",
+            accountType: "credit",
+            currency: "TWD",
+            balance: -5000,
+          },
+        ],
+        transactions: [],
+      },
+      investments: [],
+      manualAssets: [],
+    });
+    expect(summary.bankTotal).toBe(100000);
+    expect(summary.grossAssets).toBe(100000);
+    expect(summary.loanDebt).toBe(300000);
+    expect(summary.netWorth).toBe(-205000);
+    expect(summary.institutionGroups[0]?.debtTotalTwd).toBe(305000);
+    expect(summary.institutionGroups[0]?.loans).toHaveLength(1);
+    expect(summary.deposits).toHaveLength(1);
+  });
   it("converts balances and groups accounts and cards by institution", () => {
     const summary = calculateAssetSummary({
       bank: {

@@ -10,6 +10,7 @@ import { BANK_SYNC_MONTHS } from "./sync-window";
 
 /** 中國信託行動銀行 API 連接器設定。機密欄位由 Worker 加密保存。 */
 export const ctbcConfigSchema = z.object({
+  syncLoansOnly: z.boolean().optional(),
   syncCreditCards: z.boolean().optional(),
   userId: z.string().min(1).optional(),
   account: z.string().min(1).optional(),

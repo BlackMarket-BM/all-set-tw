@@ -14,7 +14,7 @@ describe("connector definitions", () => {
       // CTBC scope uses a dedicated select, covered by ConnectorPanel tests.
       const fieldKeys = [
         ...connectorFields[connectorId].map(({ key }) => key),
-        ...(connectorId === "ctbc" ? ["syncCreditCards"] : []),
+        ...(connectorId === "ctbc" ? ["syncCreditCards", "syncLoansOnly"] : []),
       ];
       const definition = connectorCatalog[connectorId];
 
@@ -39,7 +39,7 @@ describe("connector definitions", () => {
   it("does not expose retired sync preferences", () => {
     for (const connectorId of supportedConnectorIds) {
       expect(connectorCatalog[connectorId].publicFields).toEqual(
-        connectorId === "ctbc" ? ["syncCreditCards"] : [],
+        connectorId === "ctbc" ? ["syncCreditCards", "syncLoansOnly"] : [],
       );
     }
 

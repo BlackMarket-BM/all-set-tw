@@ -21,6 +21,7 @@ export interface InstitutionAssetGroup {
   institution: string;
   accounts: BankAccountRow[];
   cards: BankAccountRow[];
+  loans?: BankAccountRow[];
   assetTotalTwd: number;
   debtTotalTwd: number;
   hasUnknownCardBalance: boolean;
@@ -34,6 +35,7 @@ export interface AssetSummary {
   investmentTotal: number;
   manualTotal: number;
   cardDebt: number;
+  loanDebt: number;
   hasUnknownCardBalance: boolean;
   grossAssets: number;
   netWorth: number;
@@ -64,14 +66,23 @@ export function calculateAssetSummary({
   const toTwd = (value: number, currency: string) =>
     currency === "TWD" ? value : value * (rateValues[currency] ?? 0);
   const deposits = bank.accounts.filter(
-    (account) => account.accountType !== "credit",
+    (account) =>
+      account.accountType !== "credit" && account.accountType !== "loan",
   );
   const cards = bank.accounts.filter(
     (account) => account.accountType === "credit",
   );
+  const loans = bank.accounts.filter(
+    (account) => account.accountType === "loan",
+  );
+  const loanDebt = loans.reduce(
+    (sum, account) =>
+      sum + Math.abs(toTwd(account.balance ?? 0, account.currency)),
+    0,
+  );
   const missingCurrencies = missingExchangeRateCurrencies(
     [
-      ...deposits.map((account) => ({
+      ...[...deposits, ...loans].map((account) => ({
         currency: account.currency,
         amount: account.balance ?? 0,
       })),
@@ -121,13 +132,18 @@ export function calculateAssetSummary({
   const institutionGroups = Object.entries(groups)
     .map(([key, groupedAccounts]) => {
       const accounts = groupedAccounts.filter(
-        (account) => account.accountType !== "credit",
+        (account) =>
+          account.accountType !== "credit" && account.accountType !== "loan",
       );
       const cards = groupedAccounts.filter(
         (account) => account.accountType === "credit",
       );
+      const loans = groupedAccounts.filter(
+        (account) => account.accountType === "loan",
+      );
       return {
         key,
+        loans,
         institution:
           groupedAccounts.find((account) => account.institutionName)
             ?.institutionName ??
@@ -148,7 +164,7 @@ export function calculateAssetSummary({
           0,
         ),
         hasUnknownCardBalance: cards.some((card) => card.balance == null),
-        debtTotalTwd: cards.reduce(
+        debtTotalTwd: [...cards, ...loans].reduce(
           (sum, account) =>
             sum + Math.abs(toTwd(account.balance ?? 0, account.currency)),
           0,
@@ -176,9 +192,10 @@ export function calculateAssetSummary({
     investmentTotal,
     manualTotal,
     cardDebt,
+    loanDebt,
     hasUnknownCardBalance: cards.some((card) => card.balance == null),
     grossAssets,
-    netWorth: grossAssets - cardDebt,
+    netWorth: grossAssets - cardDebt - loanDebt,
     institutionGroups,
     missingCurrencies,
   };

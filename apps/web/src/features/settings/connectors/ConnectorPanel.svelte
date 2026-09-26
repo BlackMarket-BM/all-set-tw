@@ -587,6 +587,7 @@
     const entries: Array<[string, string | number | boolean]> = [];
     if (connectorId === "ctbc") {
       entries.push(["syncCreditCards", values.syncCreditCards !== "false"]);
+      entries.push(["syncLoansOnly", values.syncLoansOnly === "true"]);
     }
     for (const field of fields) {
       const raw = values[field.key];
@@ -1055,6 +1056,23 @@
     <form autocomplete="off" onsubmit={(event) => event.preventDefault()}>
       <div class="grid gap-3 p-4">
         {#if connectorId === "ctbc"}
+          <label class="grid gap-1.5 text-sm font-medium">
+            中信同步模式
+            <Select
+              value={values.syncLoansOnly === "true" ? "true" : "false"}
+              disabled={$settings.isPending}
+              onchange={(e: Event) =>
+                (values.syncLoansOnly = (
+                  e.currentTarget as HTMLSelectElement
+                ).value)}
+            >
+              <option value="false">存款／信用卡（行動銀行）</option>
+              <option value="true">只同步信貸餘額（網銀）</option>
+            </Select>
+          </label>
+          <p class="text-sm text-muted-foreground">
+            信貸模式自動查詢分期型信貸剩餘本金，不含利息；保留但不更新存款與信用卡。若網銀要求額外驗證，同步會停止。
+          </p>
           <label class="grid gap-1.5 text-sm font-medium">
             同步範圍
             <Select

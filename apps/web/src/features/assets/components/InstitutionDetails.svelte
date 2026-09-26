@@ -61,16 +61,38 @@
         </p>
       </div>
       <div>
-        <p class="text-caption text-subtle">信用卡負債</p>
+        <p class="text-caption text-subtle">信用卡／貸款負債</p>
         <p class="mt-2 text-lg font-medium tabular-nums text-coral">
           {group.hasUnknownCardBalance
             ? "資料不完整"
-            : group.cards.length
+            : group.cards.length || group.loans?.length
               ? formatCurrency(-group.debtTotalTwd)
               : "—"}
         </p>
       </div>
     </div>
+  {/if}
+
+  {#if group.loans?.length}
+    <section class="border-b border-ink/10 px-5 py-4" aria-label="貸款本金">
+      <h3 class="font-semibold">貸款本金</h3>
+      <p class="mt-1 text-caption text-subtle">
+        剩餘未償本金，不含應繳利息；不是本期應繳金額。
+      </p>
+      {#each group.loans as loan (loan.id)}
+        <div class="mt-3 flex flex-wrap justify-between gap-2">
+          <span>{loan.accountName ?? "貸款"}</span>
+          <span class="tabular-nums text-coral"
+            >{loan.balance == null
+              ? "資料不完整"
+              : formatCurrency(-Math.abs(loan.balance), loan.currency)}</span
+          >
+          {#if loan.asOfAt}<span class="w-full text-caption text-subtle"
+              >資料時間：{formatDate(loan.asOfAt)}</span
+            >{/if}
+        </div>
+      {/each}
+    </section>
   {/if}
 
   <section class={compact ? "" : "border-b border-ink/10 px-5 py-4"}>
