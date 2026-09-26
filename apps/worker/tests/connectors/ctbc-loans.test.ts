@@ -52,6 +52,8 @@ describe("CTBC installment loan balances", () => {
       evaluate: vi
         .fn()
         .mockResolvedValueOnce(undefined)
+        .mockResolvedValueOnce(undefined)
+        .mockResolvedValueOnce(undefined)
         .mockResolvedValueOnce(true)
         .mockResolvedValueOnce([
           { account: "001234567890", principal: "300,000" },
@@ -69,6 +71,12 @@ describe("CTBC installment loan balances", () => {
       password: "synthetic-password",
     });
     expect(result.bankBalanceSnapshots?.[0]?.balance).toBe(-300000);
+    expect(page.goto).toHaveBeenCalledWith(
+      "https://www.ctbcbank.com/twrbc/twrbc-general/ot001/010",
+      expect.any(Object),
+    );
+    expect(page.evaluate.mock.calls[1]?.[1]).toBe("信用貸款");
+    expect(page.evaluate.mock.calls[2]?.[1]).toBe("看信用貸款明細");
     expect(close).toHaveBeenCalledOnce();
     const handleRequest = page.on.mock.calls[0]![1];
     const abort = vi.fn().mockResolvedValue(undefined);

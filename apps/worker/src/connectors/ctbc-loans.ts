@@ -6,7 +6,7 @@ import {
 } from "@taiwan-fin-hub/connectors";
 import { launchBrowserWithRetry } from "./browser";
 
-const LOANS_URL = "https://www.ctbcbank.com/twrbc/twrbc-invest/qu029/010";
+const LOGIN_URL = "https://www.ctbcbank.com/twrbc/twrbc-general/ot001/010";
 export type CtbcLoanRow = { account: string; principal: string };
 
 /** Only the observed installment-loan balance column; never the payment column. */
@@ -93,7 +93,7 @@ export async function syncCtbcLoans(
       else void request.continue().catch(() => {});
     });
     phase = "載入網銀頁面";
-    await page.goto(LOANS_URL, {
+    await page.goto(LOGIN_URL, {
       waitUntil: "domcontentloaded",
       timeout: 30_000,
     });
@@ -128,11 +128,11 @@ export async function syncCtbcLoans(
       await page.waitForFunction(
         () =>
           location.origin === "https://www.ctbcbank.com" &&
-          location.pathname.includes("/twrbc-invest/qu029/010") &&
-          Array.from(document.querySelectorAll("table")).some(
-            (table) =>
-              table.getClientRects().length &&
-              table.textContent?.includes("貸款餘額"),
+          location.pathname.includes("/twrbc-home/qu000/010") &&
+          Array.from(document.querySelectorAll("a,button")).some(
+            (element) =>
+              element.getClientRects().length &&
+              element.textContent?.trim() === "登出",
           ),
         { timeout: 30_000 },
       );
@@ -141,6 +141,41 @@ export async function syncCtbcLoans(
         "中信網銀信貸登入未完成，或銀行要求額外驗證；未自動重試，也未更新貸款餘額。",
       );
     }
+    // Follow the observed read-only home -> loan summary -> detail navigation.
+    for (const label of ["信用貸款", "看信用貸款明細"]) {
+      phase = label === "信用貸款" ? "開啟貸款概要" : "開啟貸款明細";
+      await page.waitForFunction(
+        (text) =>
+          Array.from(document.querySelectorAll("a")).some(
+            (element) =>
+              element.getClientRects().length &&
+              element.textContent?.trim() === text,
+          ),
+        { timeout: 15_000 },
+        label,
+      );
+      await page.evaluate((text) => {
+        if (location.origin !== "https://www.ctbcbank.com")
+          throw new Error("Unexpected origin");
+        const link = Array.from(document.querySelectorAll("a")).find(
+          (element) =>
+            element.getClientRects().length &&
+            element.textContent?.trim() === text,
+        );
+        if (!link) throw new Error("Query link unavailable");
+        link.click();
+      }, label);
+    }
+    await page.waitForFunction(
+      () =>
+        location.pathname.includes("/twrbc-invest/qu029/010") &&
+        Array.from(document.querySelectorAll("table")).some(
+          (table) =>
+            table.getClientRects().length &&
+            table.textContent?.includes("貸款餘額"),
+        ),
+      { timeout: 15_000 },
+    );
     phase = "選取信用貸款分頁";
     const selected = await page.evaluate(() => {
       const tab = Array.from(
