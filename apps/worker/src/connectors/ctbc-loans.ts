@@ -80,6 +80,8 @@ export async function syncCtbcLoans(
     throw new CtbcVerificationRequiredError("請先儲存中信網銀登入資料。");
   const browser = await launchBrowserWithRetry(browserBinding);
   const page = await browser.newPage();
+  // Fixed labels only: never include browser errors, URLs or bank responses.
+  let phase = "瀏覽器初始化";
   try {
     await page.setViewport({ width: 1280, height: 900 });
     await page.setRequestInterception(true);
@@ -90,10 +92,12 @@ export async function syncCtbcLoans(
         void request.abort().catch(() => {});
       else void request.continue().catch(() => {});
     });
+    phase = "載入網銀頁面";
     await page.goto(LOANS_URL, {
       waitUntil: "domcontentloaded",
       timeout: 30_000,
     });
+    phase = "尋找登入欄位";
     await page.waitForSelector('input[formcontrolname="custIxd"]', {
       visible: true,
       timeout: 30_000,
@@ -101,9 +105,11 @@ export async function syncCtbcLoans(
     if (new URL(page.url()).origin !== "https://www.ctbcbank.com") {
       throw new CtbcConnectionError("中信網銀登入頁來源不符，已停止同步。");
     }
+    phase = "填入登入欄位";
     await page.type('input[formcontrolname="custIxd"]', config.userId);
     await page.type('input[formcontrolname="userIxd"]', config.account);
     await page.type('input[formcontrolname="pxd"]', config.password);
+    phase = "提交登入";
     await page.evaluate(() => {
       const form = document
         .querySelector('input[formcontrolname="custIxd"]')
@@ -135,6 +141,7 @@ export async function syncCtbcLoans(
         "中信網銀信貸登入未完成，或銀行要求額外驗證；未自動重試，也未更新貸款餘額。",
       );
     }
+    phase = "選取信用貸款分頁";
     const selected = await page.evaluate(() => {
       const tab = Array.from(
         document.querySelectorAll<HTMLAnchorElement>(".nav-tabs a.nav-link"),
@@ -158,6 +165,7 @@ export async function syncCtbcLoans(
         ).some((element) => element.textContent?.trim() === "信用貸款"),
       { timeout: 5_000 },
     );
+    phase = "讀取信貸餘額欄位";
     const rows = await page.evaluate(() => {
       if (location.origin !== "https://www.ctbcbank.com")
         throw new Error("Unexpected origin");
@@ -186,7 +194,9 @@ export async function syncCtbcLoans(
       error instanceof CtbcConnectionError
     )
       throw error;
-    throw new CtbcConnectionError("中信網銀信貸查詢未完成；保留上次貸款餘額。");
+    throw new CtbcConnectionError(
+      `中信網銀信貸查詢未完成（${phase}）；保留上次貸款餘額。`,
+    );
   } finally {
     await page
       .evaluate(() => {

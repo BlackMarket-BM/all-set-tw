@@ -11,6 +11,34 @@ vi.mock("../../src/connectors/browser", () => ({
 afterEach(() => vi.resetAllMocks());
 
 describe("CTBC installment loan balances", () => {
+  it("reports only a fixed failure phase and never exposes raw browser errors", async () => {
+    const page = {
+      setViewport: vi.fn(),
+      setRequestInterception: vi.fn(),
+      on: vi.fn(),
+      goto: vi
+        .fn()
+        .mockRejectedValue(new Error("synthetic-sensitive-response")),
+      evaluate: vi.fn().mockResolvedValue(undefined),
+      type: vi.fn(),
+    };
+    const close = vi.fn().mockResolvedValue(undefined);
+    vi.mocked(launchBrowserWithRetry).mockResolvedValue({
+      newPage: async () => page,
+      close,
+    } as never);
+    await expect(
+      syncCtbcLoans({} as Fetcher, {
+        userId: "synthetic-id",
+        account: "synthetic-user",
+        password: "synthetic-password",
+      }),
+    ).rejects.toThrow(
+      /^中信網銀信貸查詢未完成（載入網銀頁面）；保留上次貸款餘額。$/,
+    );
+    expect(page.type).not.toHaveBeenCalled();
+    expect(close).toHaveBeenCalledOnce();
+  });
   it("reads the personal-loan tab, closes the browser and blocks payment navigation", async () => {
     const page = {
       setViewport: vi.fn(),
