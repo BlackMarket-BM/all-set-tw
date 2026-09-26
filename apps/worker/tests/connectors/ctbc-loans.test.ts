@@ -53,28 +53,31 @@ describe("CTBC installment loan balances", () => {
     expect(abort).toHaveBeenCalledOnce();
     expect(resume).not.toHaveBeenCalled();
   });
-  it("uses negative outstanding principal, stable opaque IDs and masked names", async () => {
-    const rows = [{ account: "001234567890", principal: "123,456.78" }];
-    const first = await parseCtbcLoanRows(
-      rows,
-      new Date("2026-09-26T00:00:00Z"),
-    );
-    const next = await parseCtbcLoanRows(
-      [{ ...rows[0]!, principal: "120,000" }],
-      new Date("2026-09-27T00:00:00Z"),
-    );
-    expect(first.bankAccounts?.[0]?.accountType).toBe("loan");
-    expect(first.bankBalanceSnapshots?.[0]?.balance).toBe(-123456.78);
-    expect(next.bankAccounts?.[0]?.sourceId).toBe(
-      first.bankAccounts?.[0]?.sourceId,
-    );
-    expect(next.bankBalanceSnapshots?.[0]?.balance).toBe(-120000);
-    expect(JSON.stringify(first)).not.toContain(rows[0]!.account);
-    expect(first.bankAccounts?.[0]?.accountName).toContain("7890");
-    expect(JSON.parse(first.cursor!)).toEqual({
-      syncedAt: "2026-09-26T00:00:00.000Z",
-    });
-  });
+  it.each(["001234567890", "0000123456787890"])(
+    "uses negative principal and masked stable IDs for %s",
+    async (account) => {
+      const rows = [{ account, principal: "123,456.78" }];
+      const first = await parseCtbcLoanRows(
+        rows,
+        new Date("2026-09-26T00:00:00Z"),
+      );
+      const next = await parseCtbcLoanRows(
+        [{ ...rows[0]!, principal: "120,000" }],
+        new Date("2026-09-27T00:00:00Z"),
+      );
+      expect(first.bankAccounts?.[0]?.accountType).toBe("loan");
+      expect(first.bankBalanceSnapshots?.[0]?.balance).toBe(-123456.78);
+      expect(next.bankAccounts?.[0]?.sourceId).toBe(
+        first.bankAccounts?.[0]?.sourceId,
+      );
+      expect(next.bankBalanceSnapshots?.[0]?.balance).toBe(-120000);
+      expect(JSON.stringify(first)).not.toContain(rows[0]!.account);
+      expect(first.bankAccounts?.[0]?.accountName).toContain("7890");
+      expect(JSON.parse(first.cursor!)).toEqual({
+        syncedAt: "2026-09-26T00:00:00.000Z",
+      });
+    },
+  );
   it.each(["", "—", "NaN", "-1", "12,34", "100 元", "Infinity"])(
     "rejects missing or ambiguous principal %s",
     async (principal) => {

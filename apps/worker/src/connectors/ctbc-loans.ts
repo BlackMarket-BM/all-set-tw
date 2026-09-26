@@ -28,7 +28,7 @@ export async function parseCtbcLoanRows(
     const account = row.account.replace(/[\s-]/g, "");
     const amount = row.principal.trim();
     if (
-      !/^\d{12}$/.test(account) ||
+      !/^(?:\d{12}|\d{16})$/.test(account) ||
       !/^(?:\d+|\d{1,3}(?:,\d{3})+)(?:\.\d{1,2})?$/.test(amount)
     ) {
       throw new CtbcConnectionError("中信信貸餘額格式無法辨識；保留上次資料。");
