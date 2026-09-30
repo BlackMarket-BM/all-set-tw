@@ -61,7 +61,11 @@ export function createEsunConnector(browser?: Fetcher) {
         client.importCookies(config.sessionCookies);
       }
 
-      if (!(await client.hasAuthenticatedSession())) {
+      if (
+        !(await client.hasAuthenticatedSession(
+          config.syncCreditCards !== false,
+        ))
+      ) {
         if (!browser) {
           throw new Error(
             "E.SUN Bank requires the BROWSER binding for interactive login.",
@@ -74,7 +78,15 @@ export function createEsunConnector(browser?: Fetcher) {
       const depositWatermarks: Record<string, string> = {};
 
       console.log("[esun debug] scraping credit cards");
-      const creditCards = await scrapeCreditCards(client);
+      const creditCards: Scraped =
+        config.syncCreditCards === false
+          ? {
+              bankAccounts: [],
+              bankBalanceSnapshots: [],
+              bankTransactions: [],
+              creditCardBills: [],
+            }
+          : await scrapeCreditCards(client);
       console.log("[esun debug] scraping deposit accounts");
       const deposits = await scrapeDepositAccounts(client, depositWatermarks);
       const freshCookies = client.exportCookies();
@@ -128,7 +140,11 @@ async function loginWithBrowser(
     console.log("[esun debug] login page opened");
     await loginMobilePage(page, config);
     console.log("[esun debug] login succeeded, collecting account data");
-    const collected = await collectEsunBrowserSnapshot(browser, page);
+    const collected = await collectEsunBrowserSnapshot(
+      browser,
+      page,
+      config.syncCreditCards !== false,
+    );
     client.snapshot = collected.snapshot;
     client.rememberBrowserSession(collected.session);
     if (txnDupToken) {
@@ -871,15 +887,19 @@ class EsunHttpClient implements EsunPortalApi {
     this.txnDupToken = token;
   }
 
-  async hasAuthenticatedSession() {
-    if (!this.portalUuid || !this.iescAccessToken || this.cookies.size === 0) {
+  async hasAuthenticatedSession(syncCreditCards = true) {
+    if (
+      !this.portalUuid ||
+      (syncCreditCards && !this.iescAccessToken) ||
+      this.cookies.size === 0
+    ) {
       console.log(
         "[esun debug] hasAuthenticatedSession: no stored portal session, will log in",
       );
       return false;
     }
     try {
-      this.snapshot = await collectEsunSnapshot(this);
+      this.snapshot = await collectEsunSnapshot(this, syncCreditCards);
       console.log(
         "[esun debug] hasAuthenticatedSession: stored session still valid",
       );

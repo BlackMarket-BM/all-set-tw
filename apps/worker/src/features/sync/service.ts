@@ -555,18 +555,22 @@ export async function syncEsun(
     );
   }
 
-  const authorizationStatements = await prepareEsunAuthorizationWrite(
-    env.DB,
-    records,
-  );
+  const authorizationStatements =
+    config.syncCreditCards === false
+      ? []
+      : await prepareEsunAuthorizationWrite(env.DB, records);
   const newRecords = await persistStagedSyncWrite(env.DB, {
     records,
     afterPromoteStatements: [
       ...(bankAccounts.length > 0
         ? [linkCanonicalBankAccountsStatement(env.DB)]
         : []),
-      ...reconcileEsunLifecycleShadowStatements(env.DB),
-      ...reconcileEsunSingleCardSummaryAccountStatements(env.DB),
+      ...(config.syncCreditCards === false
+        ? []
+        : [
+            ...reconcileEsunLifecycleShadowStatements(env.DB),
+            ...reconcileEsunSingleCardSummaryAccountStatements(env.DB),
+          ]),
       ...authorizationStatements,
     ],
     finalizeStatements,

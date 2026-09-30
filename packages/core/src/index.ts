@@ -406,7 +406,7 @@ export const connectorCatalog = {
       "bank_transaction",
       "credit_card_bill",
     ],
-    publicFields: [],
+    publicFields: ["syncCreditCards"],
     credentialFields: ["userId", "account", "password"],
     secretStateFields: ["sessionCookies", "sessionExpiresAt"],
     resetOnCredentialChangeFields: ["sessionCookies", "sessionExpiresAt"],

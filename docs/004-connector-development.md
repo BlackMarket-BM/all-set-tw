@@ -320,3 +320,7 @@ Migration `0043_merge_legacy_invoice_duplicates.sql` 以相同發票號碼整併
 此模式保留但不更新存款／信用卡資料。貸款以 `accountType: loan`、負的未償本金寫入既有 staged persistence，從淨資產扣除，不算入存款總額；帳號只在記憶體解析，持久化使用 SHA-256 ID 及末四碼名稱。空頁／不明金額／重複帳戶視為失敗，不能把既有負債清零。頁面明示貸款餘額不含利息，本期應繳金額與核准額度不參與計算。每次同步使用新瀏覽器，結束嘗試登出並關閉，不持久化 Cookie 或 Session。
 
 依據：2026-09-26 官方網銀表格與公開 Angular module `twrbc-invest-qu029`，欄位為 `loanBalAmt`；這不是行動銀行的 API contract。未支援循環信貸、房貸或自動處理銀行額外驗證。若官方頁面結構改變，應拒絕同步並保留舊資料。
+
+## 玉山未持卡帳戶
+
+玉山公開設定 `syncCreditCards` 預設省略／true，保留完整同步；未持卡者可選擇「只同步存款帳戶」。false 時登入後直接查詢臺幣／外幣存款及明細，不開刷卡明細、不要求 IESC 信用卡 Token。重用既有 Session 時也遵守此範圍。存款模式不建立虛擬信用卡、不清除既有信用卡資料，也不執行信用卡授權交易對帳。Session 仍經原有 secret-state 分離流程加密存入 encrypted_config，不存入 sync_cursor。

@@ -585,8 +585,10 @@
 
   function buildConfig() {
     const entries: Array<[string, string | number | boolean]> = [];
-    if (connectorId === "ctbc") {
+    if (connectorId === "ctbc" || connectorId === "esun") {
       entries.push(["syncCreditCards", values.syncCreditCards !== "false"]);
+    }
+    if (connectorId === "ctbc") {
       entries.push(["syncLoansOnly", values.syncLoansOnly === "true"]);
     }
     for (const field of fields) {
@@ -1073,6 +1075,8 @@
           <p class="text-sm text-muted-foreground">
             信貸模式自動查詢分期型信貸剩餘本金，不含利息；保留但不更新存款與信用卡。若網銀要求額外驗證，同步會停止。
           </p>
+        {/if}
+        {#if connectorId === "ctbc" || connectorId === "esun"}
           <label class="grid gap-1.5 text-sm font-medium">
             同步範圍
             <Select
@@ -1084,7 +1088,11 @@
                 ).value)}
             >
               <option value="true">存款帳戶與信用卡</option>
-              <option value="false">只同步存款帳戶（未持有中信信用卡）</option>
+              <option value="false"
+                >只同步存款帳戶（未持有{connectorId === "esun"
+                  ? "玉山"
+                  : "中信"}信用卡）</option
+              >
             </Select>
           </label>
           <p class="text-sm text-muted-foreground">

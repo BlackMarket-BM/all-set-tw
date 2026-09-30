@@ -535,3 +535,47 @@ describe("CTBC synchronization scope", () => {
     },
   );
 });
+
+describe("E.SUN synchronization scope", () => {
+  it("saves deposit-only mode without replacing stored credentials", async () => {
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+    const put = vi.fn().mockResolvedValue({ configured: true });
+    const api = {
+      get: vi.fn((path: string) =>
+        Promise.resolve(
+          path === "/api/sync-jobs"
+            ? []
+            : path === "/api/connectors/esun/settings"
+              ? { configured: true, publicConfig: { syncCreditCards: true } }
+              : {},
+        ),
+      ),
+      put,
+    } as unknown as ApiClient;
+    const screen = render(
+      ConnectorPanel,
+      {
+        props: {
+          api,
+          connectorId: "esun",
+          demoMode: false,
+          title: "玉山銀行",
+          fields: connectorFields.esun as ConnectorField[],
+        },
+      },
+      { wrapper: QueryClientProvider, wrapperProps: { client: queryClient } },
+    );
+    const scope = screen.getByRole("combobox", { name: "同步範圍" });
+    await waitFor(() => expect(scope).not.toBeDisabled());
+    await fireEvent.change(scope, { target: { value: "false" } });
+    await fireEvent.click(screen.getByRole("button", { name: "儲存憑證" }));
+    await waitFor(() =>
+      expect(put).toHaveBeenCalledWith("/api/connectors/esun/settings", {
+        config: { syncCreditCards: false },
+      }),
+    );
+    queryClient.clear();
+  });
+});

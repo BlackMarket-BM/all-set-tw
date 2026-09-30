@@ -163,37 +163,53 @@ interface BillSummaryBody {
 export async function collectEsunBrowserSnapshot(
   browser: Browser,
   portalPage: Page,
+  syncCreditCards = true,
 ): Promise<{ snapshot: EsunSnapshot; session: EsunBrowserSession }> {
-  const iescPage = await openIescCardPage(browser, portalPage);
+  if (!syncCreditCards) {
+    await portalPage.waitForFunction(
+      () =>
+        Boolean(
+          (window as Window & { mibApiService?: { uuid?: string } })
+            .mibApiService?.uuid,
+        ),
+      { timeout: 15000 },
+    );
+  }
+  const iescPage = syncCreditCards
+    ? await openIescCardPage(browser, portalPage)
+    : undefined;
   let realtimeBody = "{}";
-  const snapshot = await collectEsunSnapshot({
-    postPortal: (path, body, resetFlow) =>
-      postPortalFromPage(portalPage, path, body, Boolean(resetFlow)),
-    postIesc: (path, body) => postIescFromPage(iescPage, path, body),
-    readRealtime: async () => {
-      const result = await readIescRealtime(iescPage);
-      realtimeBody = result.body;
-      return result;
+  const snapshot = await collectEsunSnapshot(
+    {
+      postPortal: (path, body, resetFlow) =>
+        postPortalFromPage(portalPage, path, body, Boolean(resetFlow)),
+      postIesc: (path, body) => postIescFromPage(iescPage!, path, body),
+      readRealtime: async () => {
+        const result = await readIescRealtime(iescPage!);
+        realtimeBody = result.body;
+        return result;
+      },
     },
-  });
+    syncCreditCards,
+  );
   const portalUuid = await portalPage.evaluate(() => {
     const state = (window as Window & { mibApiService?: { uuid?: string } })
       .mibApiService;
     return state?.uuid ?? "";
   });
-  const iescAccessToken = await iescPage.evaluate(
-    () => sessionStorage.getItem("accessToken") ?? "",
-  );
+  const iescAccessToken = iescPage
+    ? await iescPage.evaluate(() => sessionStorage.getItem("accessToken") ?? "")
+    : "";
   const cookies = [
     ...(await portalPage.cookies()),
-    ...(await iescPage.cookies()),
+    ...(iescPage ? await iescPage.cookies() : []),
   ].map((cookie) => ({
     name: cookie.name,
     value: cookie.value,
     domain: cookie.domain || "ebank.esunbank.com.tw",
     path: cookie.path || "/",
   }));
-  if (!portalUuid || !iescAccessToken) {
+  if (!portalUuid || (syncCreditCards && !iescAccessToken)) {
     throw new Error("E.SUN login did not establish a reusable portal session.");
   }
   return {
@@ -209,31 +225,38 @@ export async function collectEsunBrowserSnapshot(
 
 export async function collectEsunSnapshot(
   api: EsunPortalApi,
+  syncCreditCards = true,
 ): Promise<EsunSnapshot> {
-  const realtime = (await api.readRealtime()).payload;
-  assertIescOk(realtime, "realtime");
-  const creditHistory = await loadCreditHistory(api);
-  logEsunStep("credit-history-loaded");
-  const billPeriod = await loadBillPeriod(api);
-  const billSummary = billPeriod
-    ? await api.postIesc("creditBill/getSummaryResult", { billPeriod })
-    : null;
-  if (billSummary) assertIescOk(billSummary, "bill");
-
+  let realtime: unknown = null;
+  let creditHistory: unknown[] = [];
+  let billPeriod: string | null = null;
+  let billSummary: unknown = null;
   let cardOverview: unknown = null;
-  try {
-    await api.postPortal(CARD_OVERVIEW_INIT_PATH, {}, true);
-    cardOverview = await api.postPortal(CARD_OVERVIEW_PATH, {});
-  } catch (error) {
-    console.log(
-      JSON.stringify({
-        event: "esun_card_overview_unavailable",
-        errorType: error instanceof Error ? error.name : "UNKNOWN_ERROR",
-      }),
-    );
-  }
+  if (syncCreditCards) {
+    realtime = (await api.readRealtime()).payload;
+    assertIescOk(realtime, "realtime");
+    creditHistory = await loadCreditHistory(api);
+    logEsunStep("credit-history-loaded");
+    billPeriod = await loadBillPeriod(api);
+    billSummary = billPeriod
+      ? await api.postIesc("creditBill/getSummaryResult", { billPeriod })
+      : null;
+    if (billSummary) assertIescOk(billSummary, "bill");
 
-  logEsunStep("card-bill-loaded");
+    try {
+      await api.postPortal(CARD_OVERVIEW_INIT_PATH, {}, true);
+      cardOverview = await api.postPortal(CARD_OVERVIEW_PATH, {});
+    } catch (error) {
+      console.log(
+        JSON.stringify({
+          event: "esun_card_overview_unavailable",
+          errorType: error instanceof Error ? error.name : "UNKNOWN_ERROR",
+        }),
+      );
+    }
+
+    logEsunStep("card-bill-loaded");
+  }
   const range = depositSearchRange();
   const twDeposits = await loadDeposits(api, {
     prequeryPath: TW_DEPOSIT_PREQUERY_PATH,
