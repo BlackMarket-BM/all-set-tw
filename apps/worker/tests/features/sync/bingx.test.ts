@@ -4,7 +4,7 @@ import { syncExchange } from "@taiwan-fin-hub/connectors";
 import { privateClient } from "../../../../../packages/connectors/src/exchanges/http";
 const now = Date.parse("2026-10-22T00:00:00Z");
 const config = { apiKey: "synthetic-key", apiSecret: "synthetic-secret" };
-function fixture(permissions: number[] = [2]) {
+function fixture(permissions: (number | string)[] = [2]) {
   return vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = new URL(String(input));
     if (url.searchParams.has("signature")) {
@@ -92,5 +92,78 @@ describe("BingX readonly assets", () => {
     const promise = syncExchange("bingx", config, { fetcher, now: () => now });
     await expect(promise).rejects.toThrow("未更新資產");
     await expect(promise).rejects.not.toThrow(config.apiSecret);
+  });
+});
+
+describe("BingX permission representations and safe diagnostics", () => {
+  it("accepts the read-only string permission without relaxing permission checks", async () => {
+    const result = await syncExchange("bingx", config, {
+      fetcher: fixture(["2"]),
+      now: () => now,
+    });
+    expect(result.bankBalanceSnapshots?.[0].balance).toBeCloseTo(
+      135 * 0.98 * 32,
+    );
+  });
+  it("rejects string write permissions", async () => {
+    await expect(
+      syncExchange("bingx", config, {
+        fetcher: fixture(["2", "5"]),
+        now: () => now,
+      }),
+    ).rejects.toThrow("只有讀取");
+  });
+  it("identifies bank-side codes without disclosing their message", async () => {
+    const fetcher: typeof fetch = async () =>
+      new Response(JSON.stringify({ code: 100001, msg: config.apiSecret }));
+    const result = syncExchange("bingx", config, { fetcher, now: () => now });
+    await expect(result).rejects.toThrow("API Key 權限檢查失敗（代碼 100001）");
+    await expect(result).rejects.not.toThrow(config.apiSecret);
+  });
+  it("reports the failing schema stage without printing its fields", async () => {
+    const fetcher: typeof fetch = async () =>
+      new Response(
+        JSON.stringify({ code: 0, data: { secret: config.apiSecret } }),
+      );
+    const result = syncExchange("bingx", config, { fetcher, now: () => now });
+    await expect(result).rejects.toThrow("API Key 權限檢查回應格式不符");
+    await expect(result).rejects.not.toThrow(config.apiSecret);
+  });
+});
+
+describe("BingX observed funding response", () => {
+  it("accepts data.assets with numeric amounts and includes locked funds", async () => {
+    const base = fixture();
+    const fetcher: typeof fetch = async (input, init) =>
+      String(input).includes("/fund/")
+        ? new Response(
+            JSON.stringify({
+              code: 0,
+              data: { assets: [{ asset: "USDT", free: 8, locked: 2 }] },
+            }),
+          )
+        : base(input, init);
+    const result = await syncExchange("bingx", config, {
+      fetcher,
+      now: () => now,
+    });
+    expect(result.bankBalanceSnapshots?.[0].balance).toBeCloseTo(
+      135 * 0.98 * 32,
+    );
+  });
+  it.each([
+    null,
+    {},
+    { assets: [{ asset: "USDT", free: -1, locked: 0 }] },
+    { assets: [{ asset: "USDT", free: 8 }] },
+  ])("does not turn missing or invalid funds into zero", async (data) => {
+    const base = fixture();
+    const fetcher: typeof fetch = async (input, init) =>
+      String(input).includes("/fund/")
+        ? new Response(JSON.stringify({ code: 0, data }))
+        : base(input, init);
+    await expect(
+      syncExchange("bingx", config, { fetcher, now: () => now }),
+    ).rejects.toThrow("資金帳戶查詢回應格式不符");
   });
 });

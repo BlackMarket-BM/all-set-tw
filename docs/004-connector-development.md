@@ -330,3 +330,5 @@ Migration `0043_merge_legacy_invoice_duplicates.sql` 以相同發票號碼整併
 BingX 使用獨立 exchange adapter；僅允許 GET 權限、現貨與資金餘額三個私有端點。權限必須只有 `2`（讀取），未知或寫入權限拒絕。餘額為 free + locked，兩錢包各計一次；排除 VST 測試幣，不包含合約、跟單、Earn。價格使用 `/openApi/spot/v2/quote/price`，沿用 USDT/USD 與 USD/TWD 換算、加密設定及 staged persistence；任一餘額／價格失敗均不更新資產。
 
 依據：[官方 API 文件](https://bingx-api.github.io/docs-v3/)，2026-10-22 查核。官方文件頁的現行 permissions 陣列與 balances 陣列為準，非另一本 AI skills 文件的過時 boolean 權限欄位。新增排程預設停用，無 Schema 結構變更。
+
+BingX 資金 API 實測成功回應為 `data.assets`，`free`／`locked` 為 number；另相容文件的 `data.balances` 字串金額。欄位缺漏、負數或非有限值仍拒絕，不將失敗當作零資產。錯誤只顯示固定步驟與整數 API code，不輸出上游 msg 或 payload。
