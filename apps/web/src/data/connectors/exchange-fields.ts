@@ -8,6 +8,7 @@ const credentials = [
 ] as const;
 export const exchangeFields = {
   bitfinex: [...credentials],
+  bingx: [...credentials],
   binance: [...credentials],
   bybit: [...credentials],
   okx: [

@@ -27,6 +27,7 @@ type ConnectorFieldMap = {
 
 export const connectorFields = {
   bitfinex: [...exchangeFields.bitfinex],
+  bingx: [...exchangeFields.bingx],
   binance: [...exchangeFields.binance],
   bybit: [...exchangeFields.bybit],
   okx: [...exchangeFields.okx],

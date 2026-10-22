@@ -1,6 +1,12 @@
 import { z } from "zod";
 
-export const exchangeIds = ["binance", "bybit", "okx", "bitfinex"] as const;
+export const exchangeIds = [
+  "binance",
+  "bybit",
+  "okx",
+  "bitfinex",
+  "bingx",
+] as const;
 export type ExchangeId = (typeof exchangeIds)[number];
 export const exchangeConfigSchema = z.object({
   apiKey: z.string().trim().min(1).max(512),
@@ -44,12 +50,18 @@ export async function hmac(
 
 // Every private endpoint is explicitly allowlisted. No orders, transfers or withdrawals.
 const origins = {
+  bingx: "https://open-api.bingx.com",
   binance: "https://api-gcp.binance.com",
   bybit: "https://api.bybit.com",
   okx: "https://www.okx.com",
   bitfinex: "https://api.bitfinex.com",
 };
 const paths: Record<ExchangeId, readonly string[]> = {
+  bingx: [
+    "/openApi/v1/account/apiPermissions",
+    "/openApi/spot/v1/account/balance",
+    "/openApi/fund/v1/account/balance",
+  ],
   bitfinex: ["/v2/auth/r/permissions", "/v2/auth/r/wallets"],
   binance: [
     "/sapi/v1/account/apiRestrictions",
@@ -121,6 +133,7 @@ function requestLabel(url: string): string {
         bybit: "Bybit",
         okx: "OKX",
         bitfinex: "Bitfinex",
+        bingx: "BingX",
       }[exchange];
       const index = paths[exchange].indexOf(pathname);
       const step =
@@ -167,7 +180,15 @@ export function privateClient(
     let headers: Record<string, string> = {};
     let url: string;
     let body: string | undefined;
-    if (id === "bitfinex") {
+    if (id === "bingx") {
+      if (Object.keys(params).length)
+        throw new ExchangeError("不允許的交易所參數。");
+      query.set("recvWindow", "5000");
+      query.set("timestamp", String(now()));
+      query.set("signature", await hmac(config.apiSecret, query.toString()));
+      headers = { "X-BX-APIKEY": config.apiKey };
+      url = `${origins[id]}${path}?${query}`;
+    } else if (id === "bitfinex") {
       lastNonce = Math.max(now() * 1000, lastNonce + 1);
       const nonce = String(lastNonce);
       body = JSON.stringify(params);

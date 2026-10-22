@@ -324,3 +324,9 @@ Migration `0043_merge_legacy_invoice_duplicates.sql` 以相同發票號碼整併
 ## 玉山未持卡帳戶
 
 玉山公開設定 `syncCreditCards` 預設省略／true，保留完整同步；未持卡者可選擇「只同步存款帳戶」。false 時登入後直接查詢臺幣／外幣存款及明細，不開刷卡明細、不要求 IESC 信用卡 Token。重用既有 Session 時也遵守此範圍。存款模式不建立虛擬信用卡、不清除既有信用卡資料，也不執行信用卡授權交易對帳。Session 仍經原有 secret-state 分離流程加密存入 encrypted_config，不存入 sync_cursor。
+
+## BingX 唯讀資產
+
+BingX 使用獨立 exchange adapter；僅允許 GET 權限、現貨與資金餘額三個私有端點。權限必須只有 `2`（讀取），未知或寫入權限拒絕。餘額為 free + locked，兩錢包各計一次；排除 VST 測試幣，不包含合約、跟單、Earn。價格使用 `/openApi/spot/v2/quote/price`，沿用 USDT/USD 與 USD/TWD 換算、加密設定及 staged persistence；任一餘額／價格失敗均不更新資產。
+
+依據：[官方 API 文件](https://bingx-api.github.io/docs-v3/)，2026-10-22 查核。官方文件頁的現行 permissions 陣列與 balances 陣列為準，非另一本 AI skills 文件的過時 boolean 權限欄位。新增排程預設停用，無 Schema 結構變更。

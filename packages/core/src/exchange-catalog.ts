@@ -3,6 +3,7 @@ export const exchangeConnectorIds = [
   "bybit",
   "okx",
   "bitfinex",
+  "bingx",
 ] as const;
 const common = {
   connectionMode: "api_credentials",
@@ -14,6 +15,12 @@ const common = {
   resetOnCredentialChangeFields: [],
 } as const;
 export const exchangeConnectorCatalog = {
+  bingx: {
+    ...common,
+    id: "bingx",
+    title: "BingX",
+    description: "唯讀現貨／資金資產台幣估值；不含合約、跟單與 Earn",
+  },
   bitfinex: {
     ...common,
     id: "bitfinex",

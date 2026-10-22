@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { bingx, bingxPrices } from "./bingx";
 import { bitfinex, bitfinexPrices } from "./bitfinex";
 import type { SyncResult } from "@taiwan-fin-hub/core";
 import {
@@ -16,6 +17,7 @@ export { exchangeConfigSchema, okxConfigSchema, ExchangeError } from "./http";
 export type { ExchangeId } from "./http";
 export const binanceConfigSchema = exchangeConfigSchema;
 export const bybitConfigSchema = exchangeConfigSchema;
+export const bingxConfigSchema = exchangeConfigSchema;
 export const bitfinexConfigSchema = exchangeConfigSchema;
 export const parseBitfinexConfig = (value: unknown) =>
   bitfinexConfigSchema.parse(value);
@@ -199,6 +201,7 @@ async function okx(
 }
 
 async function prices(id: ExchangeId, fetcher: typeof fetch) {
+  if (id === "bingx") return bingxPrices(fetcher);
   if (id === "bitfinex") return bitfinexPrices(fetcher);
   if (id === "binance") {
     const rows = parsePayload(
@@ -249,7 +252,7 @@ export async function syncExchange(
       "請先完整設定 API Key、Secret 與必要的 Passphrase。",
     );
   const request = privateClient(id, parsed.data, fetcher, now);
-  const data = await { binance, bybit, okx, bitfinex }[id](request);
+  const data = await { binance, bybit, okx, bitfinex, bingx }[id](request);
   const holdings = data.holdings.filter((row) => row.quantity !== 0);
   const ticks = holdings.length
     ? await prices(id, fetcher)
@@ -320,6 +323,7 @@ export async function syncExchange(
     bybit: "Bybit",
     okx: "OKX",
     bitfinex: "Bitfinex",
+    bingx: "BingX",
   }[id];
   return {
     records: [],
