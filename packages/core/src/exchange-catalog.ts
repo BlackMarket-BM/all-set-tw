@@ -19,7 +19,7 @@ export const exchangeConnectorCatalog = {
     ...common,
     id: "bingx",
     title: "BingX",
-    description: "唯讀現貨／資金資產台幣估值；不含合約、跟單與 Earn",
+    description: "唯讀現貨／資金／跟單帳戶台幣估值；不含其他合約帳戶與 Earn",
   },
   bitfinex: {
     ...common,

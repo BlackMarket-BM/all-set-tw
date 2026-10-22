@@ -61,6 +61,7 @@ const paths: Record<ExchangeId, readonly string[]> = {
     "/openApi/v1/account/apiPermissions",
     "/openApi/spot/v1/account/balance",
     "/openApi/fund/v1/account/balance",
+    "/openApi/account/v1/allAccountBalance",
   ],
   bitfinex: ["/v2/auth/r/permissions", "/v2/auth/r/wallets"],
   binance: [
@@ -181,7 +182,13 @@ export function privateClient(
     let url: string;
     let body: string | undefined;
     if (id === "bingx") {
-      if (Object.keys(params).length)
+      const overview = path === "/openApi/account/v1/allAccountBalance";
+      if (
+        overview
+          ? Object.keys(params).length !== 1 ||
+            params.accountType !== "copyTrading"
+          : Object.keys(params).length !== 0
+      )
         throw new ExchangeError("不允許的交易所參數。");
       query.set("recvWindow", "5000");
       query.set("timestamp", String(now()));

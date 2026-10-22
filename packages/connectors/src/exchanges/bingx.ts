@@ -59,6 +59,28 @@ const fundBalances = z.union([
   ).transform((value) => value.data.assets),
 ]);
 
+const copyRows = z
+  .array(
+    z.object({
+      accountType: z.literal("copyTrading"),
+      usdtBalance: z.union([decimal, z.number().finite()]),
+    }),
+  )
+  .max(1);
+const copyOverview = envelope(
+  z.union([
+    copyRows,
+    z
+      .object({
+        result: copyRows,
+        pageId: z.literal(1),
+        total: z.number().int().nonnegative(),
+      })
+      .refine((value) => value.total === value.result.length)
+      .transform((value) => value.result),
+  ]),
+);
+
 export async function bingx(request: ReturnType<typeof privateClient>) {
   // Official docs show an unwrapped permissions object; accept the standard
   // success envelope too, but never accept an error envelope as permissions.
@@ -85,9 +107,21 @@ export async function bingx(request: ReturnType<typeof privateClient>) {
     await request("/openApi/fund/v1/account/balance"),
     "資金帳戶查詢",
   );
+  const copy = parseBingx(
+    copyOverview,
+    await request("/openApi/account/v1/allAccountBalance", {
+      accountType: "copyTrading",
+    }),
+    "跟單帳戶查詢",
+  );
   return {
     usdEquity: 0,
     holdings: [
+      ...copy.data.map((row) => ({
+        asset: "USDT",
+        quantity: row.usdtBalance,
+        wallet: "跟單（USDT 折合資產）",
+      })),
       ...spot.data.balances.map((row) => ({
         asset: row.asset,
         quantity: row.free + row.locked,

@@ -21,6 +21,7 @@ function fixture(permissions: (number | string)[] = [2]) {
     } else expect(new Headers(init?.headers).has("X-BX-APIKEY")).toBe(false);
     const rows: Record<string, unknown> = {
       "/openApi/v1/account/apiPermissions": { permissions },
+      "/openApi/account/v1/allAccountBalance": { code: 0, data: [] },
       "/openApi/spot/v1/account/balance": {
         code: 0,
         data: {
@@ -165,5 +166,97 @@ describe("BingX observed funding response", () => {
     await expect(
       syncExchange("bingx", config, { fetcher, now: () => now }),
     ).rejects.toThrow("資金帳戶查詢回應格式不符");
+  });
+});
+
+describe("BingX copy trading account", () => {
+  function copyFixture(data: unknown): typeof fetch {
+    const base = fixture();
+    return async (input, init) => {
+      const u = new URL(String(input));
+      if (u.pathname !== "/openApi/account/v1/allAccountBalance")
+        return base(input, init);
+      expect(u.searchParams.get("accountType")).toBe("copyTrading");
+      const signature = u.searchParams.get("signature");
+      u.searchParams.delete("signature");
+      expect(signature).toBe(
+        createHmac("sha256", config.apiSecret)
+          .update(u.searchParams.toString())
+          .digest("hex"),
+      );
+      expect([...u.searchParams.keys()]).toEqual([
+        "accountType",
+        "recvWindow",
+        "timestamp",
+      ]);
+      expect(init?.method).toBe("GET");
+      return new Response(JSON.stringify({ code: 0, data }));
+    };
+  }
+  it.each([
+    [{ accountType: "copyTrading", usdtBalance: "50" }],
+    {
+      result: [{ accountType: "copyTrading", usdtBalance: "50" }],
+      pageId: 1,
+      total: 1,
+    },
+  ])(
+    "adds only copy-account USDT equivalent once, including FX",
+    async (data) => {
+      const result = await syncExchange("bingx", config, {
+        fetcher: copyFixture(data),
+        now: () => now,
+      });
+      expect(result.bankBalanceSnapshots?.[0].balance).toBeCloseTo(
+        185 * 0.98 * 32,
+      );
+    },
+  );
+  it.each([
+    [
+      { accountType: "copyTrading", usdtBalance: "5" },
+      { accountType: "copyTrading", usdtBalance: "5" },
+    ],
+    [{ accountType: "sopt", usdtBalance: "999" }],
+    {
+      result: [{ accountType: "copyTrading", usdtBalance: "50" }],
+      pageId: 1,
+      total: 2,
+    },
+    {},
+  ])(
+    "rejects duplicates, other accounts and incomplete responses",
+    async (data) => {
+      await expect(
+        syncExchange("bingx", config, {
+          fetcher: copyFixture(data),
+          now: () => now,
+        }),
+      ).rejects.toThrow("跟單帳戶查詢回應格式不符");
+    },
+  );
+  it("preserves negative copy account values", async () => {
+    const result = await syncExchange("bingx", config, {
+      fetcher: copyFixture([
+        { accountType: "copyTrading", usdtBalance: "-10" },
+      ]),
+      now: () => now,
+    });
+    expect(result.bankBalanceSnapshots?.[0].balance).toBeCloseTo(
+      125 * 0.98 * 32,
+    );
+  });
+  it("cannot query other accounts or add arbitrary query parameters", async () => {
+    const fetcher = vi.fn();
+    const request = privateClient("bingx", config, fetcher, () => now);
+    for (const params of <Record<string, string>[]>[
+      {},
+      { accountType: "USDTMPerp" },
+      { accountType: "copyTrading", extra: "x" },
+    ])
+      await expect(
+        request("/openApi/account/v1/allAccountBalance", params),
+      ).rejects.toThrow("不允許");
+    expect(fetcher).not.toHaveBeenCalled();
   });
 });

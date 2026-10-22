@@ -351,11 +351,13 @@ export async function syncExchange(
           usdtUsd: usdt,
           fxUpdatedAt: new Date(fx.time_last_update_unix * 1000).toISOString(),
           coverage:
-            id === "bitfinex"
-              ? "現貨與資金錢包 BALANCE；不含保證金、衍生品與未結算利息"
-              : id === "bybit"
-                ? "統一帳戶淨值與資金帳戶；不含 Earn"
-                : "現貨與資金帳戶；不含合約、槓桿與 Earn",
+            id === "bingx"
+              ? "現貨、資金與 copyTrading 跟單帳戶；不含其他合約帳戶與 Earn"
+              : id === "bitfinex"
+                ? "現貨與資金錢包 BALANCE；不含保證金、衍生品與未結算利息"
+                : id === "bybit"
+                  ? "統一帳戶淨值與資金帳戶；不含 Earn"
+                  : "現貨與資金帳戶；不含合約、槓桿與 Earn",
         },
       },
     ],
