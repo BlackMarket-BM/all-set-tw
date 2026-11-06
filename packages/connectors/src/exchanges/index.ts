@@ -1,3 +1,4 @@
+import { binance } from "./binance";
 import { z } from "zod";
 import { bingx, bingxPrices } from "./bingx";
 import { bitfinex, bitfinexPrices } from "./bitfinex";
@@ -39,67 +40,6 @@ const bybitEnvelope = <T extends z.ZodTypeAny>(result: T) =>
   z.object({ retCode: z.literal(0), result });
 const okxEnvelope = <T extends z.ZodTypeAny>(row: T) =>
   z.object({ code: z.literal("0"), data: z.array(row) });
-
-async function binance(
-  request: Request,
-): Promise<{ holdings: Holding[]; usdEquity: number }> {
-  const permissions = parsePayload(
-    z.object({
-      enableReading: z.literal(true),
-      enableWithdrawals: z.boolean(),
-      enableInternalTransfer: z.boolean(),
-      enableMargin: z.boolean(),
-      enableFutures: z.boolean(),
-      permitsUniversalTransfer: z.boolean(),
-      enableVanillaOptions: z.boolean(),
-      enableSpotAndMarginTrading: z.boolean(),
-      enableFixApiTrade: z.boolean().optional(),
-      enablePortfolioMarginTrading: z.boolean().optional(),
-    }),
-    await request("/sapi/v1/account/apiRestrictions"),
-  );
-  if (
-    Object.entries(permissions).some(
-      ([key, value]) => key !== "enableReading" && value === true,
-    )
-  )
-    throw readOnlyError();
-  const spot = parsePayload(
-    z.object({
-      balances: z.array(
-        z.object({ asset: symbol, free: decimal, locked: decimal }),
-      ),
-    }),
-    await request("/api/v3/account"),
-  );
-  const funding = parsePayload(
-    z.array(
-      z.object({
-        asset: symbol,
-        free: decimal,
-        locked: decimal,
-        freeze: decimal,
-        withdrawing: decimal,
-      }),
-    ),
-    await request("/sapi/v1/asset/get-funding-asset"),
-  );
-  return {
-    usdEquity: 0,
-    holdings: [
-      ...spot.balances.map((row) => ({
-        asset: row.asset,
-        quantity: row.free + row.locked,
-        wallet: "現貨",
-      })),
-      ...funding.map((row) => ({
-        asset: row.asset,
-        quantity: row.free + row.locked + row.freeze + row.withdrawing,
-        wallet: "資金",
-      })),
-    ],
-  };
-}
 
 async function bybit(
   request: Request,
@@ -355,9 +295,11 @@ export async function syncExchange(
               ? "現貨、資金與 copyTrading 跟單帳戶；不含其他合約帳戶與 Earn"
               : id === "bitfinex"
                 ? "現貨與資金錢包 BALANCE；不含保證金、衍生品與未結算利息"
-                : id === "bybit"
-                  ? "統一帳戶淨值與資金帳戶；不含 Earn"
-                  : "現貨與資金帳戶；不含合約、槓桿與 Earn",
+                : id === "binance"
+                  ? "現貨、資金與 USDⓈ-M／COIN-M 合約錢包總覽估值；合約以交易所 USDT 折合餘額換算，不另加損益；不含 Portfolio Margin、槓桿與 Earn"
+                  : id === "bybit"
+                    ? "統一帳戶淨值與資金帳戶；不含 Earn"
+                    : "現貨與資金帳戶；不含合約、槓桿與 Earn",
         },
       },
     ],

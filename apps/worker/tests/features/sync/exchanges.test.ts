@@ -28,6 +28,10 @@ const permissions = {
 function fixtures(): Record<string, unknown> {
   return {
     "/sapi/v1/account/apiRestrictions": permissions,
+    "/sapi/v1/asset/wallet/balance": [
+      { walletName: "USDⓈ-M Futures", activate: false, balance: "0" },
+      { walletName: "COIN-M Futures", activate: false, balance: "0" },
+    ],
     "/api/v3/account": {
       balances: [{ asset: "BTC", free: "1", locked: "0.25" }],
     },

@@ -68,6 +68,7 @@ const paths: Record<ExchangeId, readonly string[]> = {
     "/sapi/v1/account/apiRestrictions",
     "/api/v3/account",
     "/sapi/v1/asset/get-funding-asset",
+    "/sapi/v1/asset/wallet/balance",
   ],
   bybit: [
     "/v5/user/query-api",

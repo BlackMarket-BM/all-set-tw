@@ -31,7 +31,8 @@ export const exchangeConnectorCatalog = {
     ...common,
     id: "binance",
     title: "Binance",
-    description: "唯讀現貨／資金資產台幣估值；不含合約、槓桿與 Earn",
+    description:
+      "唯讀現貨／資金／USDⓈ-M／COIN-M 合約錢包台幣估值；不含 Portfolio Margin、槓桿與 Earn",
   },
   bybit: {
     ...common,

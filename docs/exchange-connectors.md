@@ -6,7 +6,7 @@
 
 | 來源     | 納入範圍                                                    | 不納入／不支援                                   |
 | -------- | ----------------------------------------------------------- | ------------------------------------------------ |
-| Binance  | 現貨可用與鎖定餘額、資金帳戶可用／鎖定／凍結／提領中餘額    | 合約、槓桿、Earn、子帳戶                         |
+| Binance  | 現貨與資金餘額、USDⓈ-M／COIN-M 合約錢包總覽估值             | Portfolio Margin、槓桿、Earn、子帳戶             |
 | Bybit    | UNIFIED `totalEquity`（USD 淨值，含損益及負債）與 FUND 餘額 | Classic／獨立保證金無總淨值的模式、Earn、子帳戶  |
 | Bitfinex | exchange 與 funding 錢包 `BALANCE`（含保留資金）            | margin、衍生品、未結算利息、子帳戶               |
 | OKX      | 交易帳戶 `cashBal` 與資金帳戶 `bal`                         | 合約損益、Earn、子帳戶；偵測到借貸時整次同步失敗 |
@@ -53,9 +53,17 @@ API Key、Secret、Passphrase 沿用原專案 AES-GCM 加密，僅存於 D1 `con
 
 ## 雲端連線限制
 
-此台灣部署以 `placement.region = "gcp:asia-east1"` 指定靠近台灣的 Cloudflare 執行節點，Binance 使用官方支援的 `api-gcp.binance.com`。美國節點實測回傳 451，台灣節點的預設 Binance 主機回傳 403，官方 GCP 主機則可連線。Placement 只作用於 fetch handler，不作用於 Queue handler。因此手動與排程的 Binance 請求統一經由私有 `BINANCE_HTTP` service binding，呼叫區域 Worker 的預設 fetch handler。此服務沒有公開網址、沒有資料庫或持久金鑰，只允許四個唯讀端點，停用 invocation logs 以避免記錄簽章查詢字串。Placement 不是固定出口 IP 的保證；不同來源仍需實際驗收。來源回覆 451／403 時會保留既有資產，不會自動改接非官方代理或寫入零值。錯誤訊息只顯示服務／步驟與狀態碼，不含請求 URL、簽章或上游原始內容。
+此台灣部署以 `placement.region = "gcp:asia-east1"` 指定靠近台灣的 Cloudflare 執行節點，Binance 使用官方支援的 `api-gcp.binance.com`。美國節點實測回傳 451，台灣節點的預設 Binance 主機回傳 403，官方 GCP 主機則可連線。Placement 只作用於 fetch handler，不作用於 Queue handler。因此手動與排程的 Binance 請求統一經由私有 `BINANCE_HTTP` service binding，呼叫區域 Worker 的預設 fetch handler。此服務沒有公開網址、沒有資料庫或持久金鑰，只允許五個唯讀端點，停用 invocation logs 以避免記錄簽章查詢字串。Placement 不是固定出口 IP 的保證；不同來源仍需實際驗收。來源回覆 451／403 時會保留既有資產，不會自動改接非官方代理或寫入零值。錯誤訊息只顯示服務／步驟與狀態碼，不含請求 URL、簽章或上游原始內容。
 
 - [Binance 官方 API 主機](https://developers.binance.com/en/docs/products/spot/rest-api)
 - [Cloudflare Placement](https://developers.cloudflare.com/workers/configuration/placement/)
 
 `npm run deploy` 先部署 `wrangler.binance.jsonc` 的私有區域服務，再部署主站。區域服務部署的子程序清除主站 Builds 專用的名稱／tag 覆寫，主站部署仍保留原本檢查。若改名，需同步修改區域設定及主站 `BINANCE_HTTP` binding。
+
+## Binance 合約錢包
+
+現有唯讀金鑰對直接合約 account API 回報 -2015，採用官方 `GET /sapi/v1/asset/wallet/balance?quoteAsset=USDT`。只選取 `USDⓈ-M Futures` 與 `COIN-M Futures` 兩個錢包的 `balance`，按 USDT/USD、USD/TWD 換算。忽略總覽中的現貨、資金與其他錢包，避免與既有餘額重複。缺少任一錢包、重複或未啟用但餘額非零時拒絕更新。允許負餘額；未啟用且明確回報零額者可計零。
+
+此處是 Binance 回報的錢包總覽估值；官方文件未明確說明 balance 的未實現損益構成，不能宣稱包含全部未實現損益，也不自行再加倉位損益、保證金或名目價值。不支援 Portfolio Margin。仍拒絕交易、轉帳與提領權限，區域服務只新增固定的總覽 GET 端點。
+
+官方依據：[Query User Wallet Balance](https://developers.binance.com/en/docs/catalog/core-trading-wallet/api/rest-api/asset#query-user-wallet-balance-user_data)。

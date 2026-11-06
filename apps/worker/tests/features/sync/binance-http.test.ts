@@ -10,6 +10,7 @@ describe("private Binance regional HTTP service", () => {
     ["GET", "/api/v3/account"],
     ["POST", "/sapi/v1/asset/get-funding-asset"],
     ["GET", "/api/v3/ticker/price"],
+    ["GET", "/sapi/v1/asset/wallet/balance"],
   ])("preserves signed query for %s %s", async (method, path) => {
     const url = `https://api-gcp.binance.com${path}?timestamp=123&signature=abc%2Fdef`;
     const fetcher = vi

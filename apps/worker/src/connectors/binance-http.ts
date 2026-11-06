@@ -4,6 +4,7 @@ const allowed = new Set([
   "GET /api/v3/account",
   "POST /sapi/v1/asset/get-funding-asset",
   "GET /api/v3/ticker/price",
+  "GET /sapi/v1/asset/wallet/balance",
 ]);
 
 // Private service binding only. Use a fetch handler so placement also applies
